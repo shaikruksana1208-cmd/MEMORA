@@ -521,7 +521,7 @@ def study_txt():
         return jsonify({
             "error": "MEMORA could not read this text file."
         }), 500
-        @app.route("/")
+@app.route("/")
 def home():
     return send_file("index.html")
 
