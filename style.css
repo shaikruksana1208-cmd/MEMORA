@@ -1,0 +1,981 @@
+/* ==========================================
+   MEMORA — AESTHETIC PASTEL THEME 🌸
+   ========================================== */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: #fff8fc;
+    color: #51445f;
+    line-height: 1.6;
+}
+
+
+/* ==========================================
+   HEADER 🌷
+   ========================================== */
+
+header {
+    width: 100%;
+    padding: 20px 8%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    background: rgba(255, 248, 252, 0.92);
+    border-bottom: 1px solid #f2dce9;
+
+    position: sticky;
+    top: 0;
+    z-index: 100;
+
+    backdrop-filter: blur(12px);
+}
+
+.logo {
+    font-size: 24px;
+    font-weight: 800;
+    color: #9b72b0;
+}
+
+nav {
+    display: flex;
+    gap: 28px;
+}
+
+nav a {
+    text-decoration: none;
+    color: #75657f;
+    font-weight: 600;
+}
+
+nav a:hover {
+    color: #d889ad;
+}
+
+
+/* ==========================================
+   HERO 🌸
+   ========================================== */
+
+.hero {
+    min-height: 85vh;
+    padding: 90px 8%;
+
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    gap: 50px;
+
+    background:
+        radial-gradient(circle at 10% 20%, #fbd9e9 0%, transparent 30%),
+        radial-gradient(circle at 90% 20%, #dcecff 0%, transparent 30%),
+        radial-gradient(circle at 50% 100%, #e4f5e5 0%, transparent 35%),
+        #fff8fc;
+}
+
+.hero-small {
+    color: #c477a0;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+}
+
+.hero h1 {
+    font-size: clamp(45px, 6vw, 78px);
+    line-height: 1.05;
+    color: #574765;
+}
+
+.hero h1 span {
+    color: #d783aa;
+}
+
+.hero-description {
+    max-width: 600px;
+    margin-top: 25px;
+    font-size: 18px;
+    color: #75677e;
+}
+
+.start-btn {
+    margin-top: 30px;
+    padding: 15px 28px;
+
+    border: none;
+    border-radius: 30px;
+
+    background: #e9b6d0;
+    color: #59435f;
+
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+
+    box-shadow: 0 8px 20px rgba(211, 137, 170, 0.2);
+}
+
+.start-btn:hover {
+    transform: translateY(-2px);
+    background: #e4a8c7;
+}
+
+
+/* ==========================================
+   HERO BRAIN 🧠🌷
+   ========================================== */
+
+.hero-visual {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.memory-orbit {
+    width: 330px;
+    height: 330px;
+    position: relative;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.orbit-circle {
+    width: 280px;
+    height: 280px;
+
+    border: 2px dashed #dcb9d9;
+    border-radius: 50%;
+
+    position: absolute;
+}
+
+.brain {
+    width: 125px;
+    height: 125px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    border-radius: 50%;
+
+    background: #f9dce9;
+    font-size: 65px;
+
+    box-shadow: 0 12px 30px rgba(196, 135, 170, 0.18);
+}
+
+.orbit-dot {
+    width: 18px;
+    height: 18px;
+
+    border-radius: 50%;
+    position: absolute;
+
+    box-shadow: 0 5px 15px rgba(150, 120, 160, 0.2);
+}
+
+.dot-one {
+    top: 20px;
+    left: 80px;
+    background: #b9d8f5;
+}
+
+.dot-two {
+    right: 30px;
+    top: 130px;
+    background: #c8e8d0;
+}
+
+.dot-three {
+    bottom: 35px;
+    left: 70px;
+    background: #f4c4d8;
+}
+
+
+/* ==========================================
+   COMMON SECTIONS 🌷
+   ========================================== */
+
+.features,
+.study-planner,
+.pomodoro-section,
+.quick-study,
+.teach-back {
+    padding: 100px 8%;
+}
+
+.features {
+    background: #fffdf9;
+}
+
+.study-planner {
+    background: #f8f1fb;
+}
+
+.pomodoro-section {
+    background: #fff5f7;
+}
+
+.quick-study {
+    background: #f2f8ff;
+}
+
+.teach-back {
+    background: #f4faf5;
+}
+
+section h2 {
+    text-align: center;
+    font-size: 38px;
+    color: #594a65;
+}
+
+.section-description {
+    text-align: center;
+    max-width: 650px;
+    margin: 12px auto 45px;
+    color: #817486;
+}
+
+
+/* ==========================================
+   AI STUDY SPACE 🧠
+   ========================================== */
+
+.study-room {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.input-area,
+.output-area,
+.planner-input,
+.planner-output,
+.pomodoro-box,
+.quick-study-input,
+.quick-study-output,
+.teach-back-input,
+.teach-back-output {
+
+    background: rgba(255, 255, 255, 0.9);
+
+    border: 1px solid #eadde8;
+    border-radius: 24px;
+
+    padding: 30px;
+
+    box-shadow: 0 12px 35px rgba(120, 90, 130, 0.08);
+}
+
+label {
+    display: block;
+    margin-bottom: 9px;
+
+    font-weight: 700;
+    color: #66556e;
+}
+
+textarea,
+input,
+select {
+    width: 100%;
+
+    padding: 15px;
+
+    border: 1px solid #e5d5e2;
+    border-radius: 14px;
+
+    background: #fffafd;
+    color: #594b62;
+
+    font-size: 15px;
+
+    outline: none;
+}
+
+textarea {
+    min-height: 180px;
+    resize: vertical;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    border-color: #d7a6c4;
+    box-shadow: 0 0 0 3px #f8e5ef;
+}
+
+
+/* ==========================================
+   MODE BUTTONS 🎀
+   ========================================== */
+
+.mode-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.mode-btn {
+    padding: 10px 15px;
+
+    border: 1px solid #e5d5e2;
+    border-radius: 20px;
+
+    background: #fff7fb;
+    color: #725d78;
+
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.mode-btn:hover,
+.mode-btn.active {
+    background: #f3d5e5;
+    border-color: #dda8c5;
+    color: #62445d;
+}
+
+
+/* ==========================================
+   MAIN BUTTONS 🌸
+   ========================================== */
+
+.generate-btn,
+.planner-btn,
+.quick-study-btn,
+.teach-back-btn {
+
+    width: 100%;
+
+    padding: 15px;
+
+    border: none;
+    border-radius: 15px;
+
+    background: #dca8c6;
+    color: #fff;
+
+    font-size: 16px;
+    font-weight: 700;
+
+    cursor: pointer;
+
+    box-shadow: 0 8px 18px rgba(194, 129, 163, 0.18);
+}
+
+.generate-btn:hover,
+.planner-btn:hover,
+.quick-study-btn:hover,
+.teach-back-btn:hover {
+    background: #cf92b6;
+    transform: translateY(-1px);
+}
+
+
+/* ==========================================
+   OUTPUT AREA ✨
+   ========================================== */
+
+.output-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee0e8;
+
+    font-weight: 700;
+    color: #82627c;
+}
+
+.ai-status {
+    padding: 5px 10px;
+
+    border-radius: 20px;
+
+    background: #e5f4e8;
+    color: #6d9877;
+
+    font-size: 12px;
+}
+
+.output-content,
+.planner-result,
+.quick-result,
+.teach-result {
+    margin-top: 30px;
+}
+
+.output-icon {
+    font-size: 45px;
+    margin-bottom: 15px;
+}
+
+.output-content h3,
+.planner-result h3,
+.quick-result h3,
+.teach-result h3 {
+    color: #5e4d67;
+}
+
+.ai-response {
+    color: #66576d;
+    line-height: 1.8;
+}
+
+.ai-response h2,
+.ai-response h3 {
+    color: #9a6689;
+    margin-top: 20px;
+}
+
+.ai-response ul {
+    padding-left: 25px;
+}
+
+.ai-response strong {
+    color: #8e5f82;
+}
+
+
+/* ==========================================
+   STUDY PLANNER 📅
+   ========================================== */
+
+.planner-box {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.planner-input {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.planner-btn {
+    margin-top: 15px;
+}
+
+
+/* ==========================================
+   POMODORO 🍅
+   ========================================== */
+
+.pomodoro-box {
+    max-width: 650px;
+    margin: auto;
+    text-align: center;
+}
+
+.timer-label {
+    color: #a26778;
+    font-weight: 800;
+    letter-spacing: 2px;
+}
+
+.timer-display {
+    font-size: 80px;
+    font-weight: 800;
+    color: #d2839c;
+
+    margin: 20px 0;
+}
+
+.timer-options,
+.timer-controls {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    margin-top: 20px;
+}
+
+.timer-option,
+.timer-controls button {
+    padding: 11px 18px;
+
+    border: 1px solid #ead5dc;
+    border-radius: 20px;
+
+    background: #fff;
+    color: #735c67;
+
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.timer-option.active {
+    background: #f4ccd8;
+    border-color: #e1a7b9;
+}
+
+
+/* ==========================================
+   QUICK STUDY ⚡
+   ========================================== */
+
+.quick-study-box {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.quick-time-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    margin: 10px 0 20px;
+}
+
+.quick-time {
+    padding: 10px 18px;
+
+    border: 1px solid #dce5ef;
+    border-radius: 20px;
+
+    background: #f9fcff;
+    color: #657487;
+
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.quick-time.active {
+    background: #d7e9fa;
+    border-color: #aacdea;
+}
+
+
+/* ==========================================
+   TEACH IT BACK 🗣️
+   ========================================== */
+
+.teach-back-box {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+}
+
+.teach-back-input textarea {
+    min-height: 200px;
+}
+
+.teach-back-output {
+    background: #fffefa;
+}
+
+
+/* ==========================================
+   FOOTER 🌷
+   ========================================== */
+
+footer {
+    padding: 60px 8%;
+
+    text-align: center;
+
+    background: #f4eaf5;
+    color: #75657b;
+}
+
+footer .logo {
+    margin-bottom: 10px;
+}
+
+.footer-small {
+    margin-top: 8px;
+    font-size: 14px;
+    color: #9b899f;
+}
+
+
+/* ==========================================
+   MOBILE 📱
+   ========================================== */
+
+@media (max-width: 800px) {
+
+    header {
+        padding: 18px 5%;
+    }
+
+    nav {
+        gap: 12px;
+    }
+
+    .hero {
+        grid-template-columns: 1fr;
+        text-align: center;
+        padding: 70px 5%;
+    }
+
+    .hero-description {
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .features,
+    .study-planner,
+    .pomodoro-section,
+    .quick-study,
+    .teach-back {
+        padding: 70px 5%;
+    }
+
+    .study-room,
+    .planner-box,
+    .quick-study-box,
+    .teach-back-box {
+        grid-template-columns: 1fr;
+    }
+
+    section h2 {
+        font-size: 30px;
+    }
+
+    .timer-display {
+        font-size: 60px;
+    }
+}
+/* ==========================================
+   UPLOAD & STUDY 📎📚
+   ========================================== */
+
+.upload-study {
+    padding: 100px 8%;
+    background: #fff9ef;
+}
+
+.upload-box {
+    max-width: 800px;
+    margin: 40px auto 0;
+    padding: 50px 30px;
+
+    background: rgba(255, 255, 255, 0.9);
+
+    border: 2px dashed #e6c8d8;
+    border-radius: 28px;
+
+    box-shadow: 0 15px 40px rgba(150, 110, 130, 0.08);
+
+    text-align: center;
+}
+
+.upload-content {
+    max-width: 600px;
+    margin: auto;
+}
+
+.upload-icon {
+    font-size: 60px;
+    margin-bottom: 15px;
+}
+
+.upload-content h3 {
+    font-size: 26px;
+    color: #62506b;
+    margin-bottom: 10px;
+}
+
+.upload-content p {
+    color: #88798c;
+    margin-bottom: 22px;
+}
+
+.upload-button {
+    display: inline-block;
+
+    padding: 14px 28px;
+
+    border-radius: 25px;
+
+    background: #e9bfd3;
+    color: #654b5e;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+    box-shadow: 0 8px 20px rgba(190, 135, 165, 0.15);
+}
+
+.upload-button:hover {
+    background: #dfabc5;
+    transform: translateY(-2px);
+}
+
+.supported-files {
+    font-size: 13px;
+    color: #a493a5 !important;
+    margin-top: 15px;
+}
+
+.selected-file {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+
+    margin-top: 25px;
+    padding: 15px;
+
+    border-radius: 15px;
+
+    background: #f8eef5;
+
+    color: #756477;
+
+    font-weight: 600;
+}
+/* ==========================================
+   IMAGE PREVIEW 🖼️🌸
+   ========================================== */
+
+.image-preview {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.image-preview img {
+    width: 100%;
+    max-width: 400px;
+    max-height: 300px;
+
+    object-fit: contain;
+
+    border-radius: 18px;
+    border: 3px solid #f0d7e5;
+
+    box-shadow: 0 10px 25px rgba(150, 110, 130, 0.12);
+}
+
+.study-file-btn {
+    display: block;
+
+    width: 100%;
+    max-width: 400px;
+
+    margin: 20px auto 0;
+
+    padding: 14px;
+
+    border: none;
+    border-radius: 15px;
+
+    background: #cfe5d5;
+    color: #526b59;
+
+    font-size: 15px;
+    font-weight: 700;
+
+    cursor: pointer;
+
+    box-shadow: 0 8px 18px rgba(110, 150, 120, 0.12);
+}
+
+.study-file-btn:hover {
+    background: #bddbc5;
+    transform: transl/* ==========================================
+   UPLOAD & STUDY 📎
+   ========================================== */
+
+.upload-study {
+    padding: 100px 8%;
+    background: #fff9fc;
+}
+
+.upload-box {
+    max-width: 850px;
+    margin: 40px auto 0;
+}
+
+.upload-content {
+    text-align: center;
+    padding: 50px 30px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px dashed #e5c8dc;
+    border-radius: 28px;
+    box-shadow: 0 12px 35px rgba(120, 90, 130, 0.08);
+}
+
+.upload-icon {
+    font-size: 60px;
+    margin-bottom: 15px;
+}
+
+.upload-content h3 {
+    font-size: 25px;
+    color: #5e4d67;
+    margin-bottom: 10px;
+}
+
+.upload-content p {
+    color: #817486;
+    max-width: 550px;
+    margin: 0 auto 20px;
+}
+
+.upload-button {
+    display: inline-block;
+    padding: 14px 28px;
+    border-radius: 25px;
+    background: #e9b6d0;
+    color: #5e465c;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 8px 18px rgba(194, 129, 163, 0.15);
+}
+
+.upload-button:hover {
+    background: #dda4c3;
+    transform: translateY(-2px);
+}
+
+.supported-files {
+    font-size: 13px;
+    color: #a18fa5 !important;
+    margin-top: 15px !important;
+}
+
+.selected-file {
+    margin-top: 25px;
+    padding: 18px;
+    border-radius: 16px;
+    background: #faf4f8;
+    border: 1px solid #eadde8;
+    color: #66556e;
+    font-weight: 600;
+}
+
+.file-message {
+    margin-top: 20px;
+}ateY(-2px);
+}
+/* ==========================================
+   DOCUMENT PREVIEW 📄
+   ========================================== */
+
+.ai-response details {
+    margin-top: 20px;
+    padding: 15px;
+    background: #fff8fc;
+    border: 1px solid #eadde8;
+    border-radius: 14px;
+}
+
+.ai-response details summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: #9a6689;
+    margin-bottom: 10px;
+}
+
+.ai-response details p {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 15px;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #eee1e9;
+    white-space: pre-wrap;
+    font-weight: 400;
+    line-height: 1.7;
+}
+/* FILE INFORMATION */
+
+.file-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.file-icon {
+    font-size: 30px;
+}
+
+.file-info div {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.file-info strong {
+    color: #66556e;
+    word-break: break-word;
+}
+
+.file-info small {
+    color: #a18fa5;
+    font-weight: 400;
+    margin-top: 2px;
+}
+/* ==========================================
+   DOCUMENT AI ACTIONS 🧠✨
+   ========================================== */
+
+.document-actions {
+    display: none;
+    margin-top: 25px;
+    padding: 25px;
+    background: #fffdf9;
+    border: 1px solid #eadde8;
+    border-radius: 20px;
+}
+
+.document-actions h3 {
+    text-align: center;
+    color: #66556e;
+    margin-bottom: 18px;
+}
+
+.document-action-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.document-action-btn {
+    padding: 13px;
+    border: 1px solid #ead5e2;
+    border-radius: 14px;
+    background: #fff7fb;
+    color: #725d78;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.document-action-btn:hover {
+    background: #f3d5e5;
+    border-color: #dda8c5;
+    transform: translateY(-2px);
+}
+
+@media (max-width: 600px) {
+
+    .document-action-buttons {
+        grid-template-columns: 1fr;
+    }
+
+}

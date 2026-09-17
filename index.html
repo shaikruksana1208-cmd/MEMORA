@@ -1,0 +1,677 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>MEMORA — AI Learning & Memory Platform</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Markdown support for AI responses -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+
+<body>
+
+    <!-- HEADER -->
+    <header>
+        <div class="logo">✦ MEMORA</div>
+
+        <nav>
+            <a href="#home">Home</a>
+            <a href="#study-space">Study</a>
+            <a href="#planner">Planner</a>
+        </nav>
+    </header>
+
+
+    <!-- HERO -->
+    <section class="hero" id="home">
+
+        <div class="hero-content">
+
+            <p class="hero-small">✦ AI-POWERED LEARNING</p>
+
+            <h1>
+                Learn it.<br>
+                Understand it.<br>
+                <span>Remember it.</span>
+            </h1>
+
+            <p class="hero-description">
+                MEMORA is your personal AI study assistant designed
+                to help you understand concepts, revise notes,
+                test your knowledge and improve your answers.
+            </p>
+
+            <button class="start-btn">
+                Start Learning ✦
+            </button>
+
+        </div>
+
+
+        <div class="hero-visual">
+
+            <div class="memory-orbit">
+
+                <div class="orbit-circle"></div>
+
+                <div class="brain">
+                    🧠
+                </div>
+
+                <div class="orbit-dot dot-one"></div>
+                <div class="orbit-dot dot-two"></div>
+                <div class="orbit-dot dot-three"></div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- AI STUDY SPACE -->
+    <section class="features" id="study-space">
+
+        <h2>Your AI Study Space 🧠</h2>
+
+        <p class="section-description">
+            Tell MEMORA what you are studying and choose how you want to learn.
+        </p>
+
+
+        <div class="study-room">
+
+
+            <!-- INPUT -->
+            <div class="input-area">
+
+                <label for="studyInput">
+                    What do you want to study?
+                </label>
+
+                <textarea
+                    id="studyInput"
+                    placeholder="Enter a topic, question, notes, or your answer here..."
+                ></textarea>
+
+
+                <div class="mode-buttons">
+
+                    <button
+                        class="mode-btn active"
+                        data-mode="explain">
+                        🧠 Explain
+                    </button>
+
+                    <button
+                        class="mode-btn"
+                        data-mode="summarize">
+                        📝 Summarize
+                    </button>
+
+                    <button
+                        class="mode-btn"
+                        data-mode="quiz">
+                        ❓ Quiz Me
+                    </button>
+
+                    <button
+                        class="mode-btn"
+                        data-mode="improve">
+                        ✨ Improve Answer
+                    </button>
+
+                    <button
+                        class="mode-btn"
+                        data-mode="simple">
+                        😵 I Don't Get It
+                    </button>
+
+                </div>
+
+
+                <button class="generate-btn">
+                    ✦ Generate with MEMORA
+                </button>
+
+            </div>
+
+
+            <!-- OUTPUT -->
+            <div class="output-area">
+
+                <div class="output-header">
+
+                    <span>✦ MEMORA</span>
+
+                    <span class="ai-status">
+                        AI READY
+                    </span>
+
+                </div>
+
+
+                <div class="output-content">
+
+                    <div class="output-icon">
+                        🧠
+                    </div>
+
+                    <h3>
+                        Your learning result will appear here
+                    </h3>
+
+                    <p>
+                        Enter something you want to learn and
+                        choose a study mode. MEMORA will help
+                        you understand it better.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- STUDY PLANNER -->
+    <section class="study-planner" id="planner">
+
+        <h2>📅 AI Study Planner</h2>
+
+        <p class="section-description">
+            Tell MEMORA what you need to study and when your exam is.
+            We'll help you create a realistic study schedule.
+        </p>
+
+
+        <div class="planner-box">
+
+
+            <div class="planner-input">
+
+                <label for="examName">
+                    What are you preparing for?
+                </label>
+
+                <input
+                    type="text"
+                    id="examName"
+                    placeholder="Example: Data Structures Exam"
+                >
+
+
+                <label for="examDate">
+                    Exam date
+                </label>
+
+                <input
+                    type="date"
+                    id="examDate"
+                >
+
+
+                <label for="subjects">
+                    What do you need to study?
+                </label>
+
+                <textarea
+                    id="subjects"
+                    placeholder="Example:
+Linked Lists
+Stacks
+Queues
+Trees
+Sorting"
+                ></textarea>
+
+
+                <label for="studyHours">
+                    How much time can you study each day?
+                </label>
+
+                <select id="studyHours">
+
+                    <option value="">
+                        Select study time
+                    </option>
+
+                    <option value="1">
+                        1 hour
+                    </option>
+
+                    <option value="2">
+                        2 hours
+                    </option>
+
+                    <option value="3">
+                        3 hours
+                    </option>
+
+                    <option value="4">
+                        4 hours
+                    </option>
+
+                </select>
+
+
+                <button class="planner-btn">
+                    ✦ Create My Study Plan
+                </button>
+
+            </div>
+
+
+            <div class="planner-output">
+
+                <div class="output-header">
+
+                    <span>
+                        ✦ MEMORA PLAN
+                    </span>
+
+                    <span class="ai-status">
+                        READY
+                    </span>
+
+                </div>
+
+
+                <div class="planner-result">
+
+                    <div class="output-icon">
+                        📅
+                    </div>
+
+                    <h3>
+                        Your study plan will appear here
+                    </h3>
+
+                    <p>
+                        Enter your exam details and subjects
+                        to create your personalized study schedule.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- POMODORO -->
+    <section class="pomodoro-section" id="focus">
+
+        <h2>🍅 Pomodoro Focus Mode</h2>
+
+        <p class="section-description">
+            Stay focused, take healthy breaks, and make your study time count.
+        </p>
+
+
+        <div class="pomodoro-box">
+
+            <div class="timer-label">
+                <span id="timerMode">
+                    FOCUS TIME
+                </span>
+            </div>
+
+
+            <div
+                class="timer-display"
+                id="timerDisplay">
+                25:00
+            </div>
+
+
+            <p id="timerMessage">
+                Time to focus on your studies.
+            </p>
+
+
+            <div class="timer-options">
+
+                <button
+                    class="timer-option active"
+                    data-focus="25"
+                    data-break="5">
+                    25 / 5
+                </button>
+
+                <button
+                    class="timer-option"
+                    data-focus="50"
+                    data-break="10">
+                    50 / 10
+                </button>
+
+                <button
+                    class="timer-option"
+                    data-focus="15"
+                    data-break="5">
+                    15 / 5
+                </button>
+
+            </div>
+
+
+            <div class="timer-controls">
+
+                <button id="startTimer">
+                    ▶ Start
+                </button>
+
+                <button id="pauseTimer">
+                    ⏸ Pause
+                </button>
+
+                <button id="resetTimer">
+                    ↻ Reset
+                </button>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- QUICK STUDY -->
+    <section class="quick-study" id="quick-study">
+
+        <h2>⚡ Quick Study</h2>
+
+        <p class="section-description">
+            Short on time? Let MEMORA create a focused mini study session.
+        </p>
+
+
+        <div class="quick-study-box">
+
+
+            <div class="quick-study-input">
+
+                <label for="quickTopic">
+                    What do you want to study?
+                </label>
+
+                <textarea
+                    id="quickTopic"
+                    placeholder="Example: Binary Search, Java OOP, Photosynthesis..."
+                ></textarea>
+
+
+                <label>
+                    How much time do you have?
+                </label>
+
+
+                <div class="quick-time-options">
+
+                    <button
+                        class="quick-time active"
+                        data-minutes="5">
+                        5 min
+                    </button>
+
+                    <button
+                        class="quick-time"
+                        data-minutes="10">
+                        10 min
+                    </button>
+
+                    <button
+                        class="quick-time"
+                        data-minutes="20">
+                        20 min
+                    </button>
+
+                    <button
+                        class="quick-time"
+                        data-minutes="30">
+                        30 min
+                    </button>
+
+                </div>
+
+
+                <button class="quick-study-btn">
+                    ⚡ Start Quick Study
+                </button>
+
+            </div>
+
+
+            <div class="quick-study-output">
+
+                <div class="output-header">
+
+                    <span>
+                        ✦ QUICK SESSION
+                    </span>
+
+                    <span class="ai-status">
+                        READY
+                    </span>
+
+                </div>
+
+
+                <div class="quick-result">
+
+                    <div class="output-icon">
+                        ⚡
+                    </div>
+
+                    <h3>
+                        Your quick study session will appear here
+                    </h3>
+
+                    <p>
+                        Choose your study time and enter a topic to begin.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- TEACH IT BACK -->
+    <section class="teach-back" id="teach-back">
+
+        <h2>🗣️ Teach It Back</h2>
+
+        <p class="section-description">
+            Explain a topic in your own words and see how well you understand it.
+        </p>
+
+
+        <div class="teach-back-box">
+
+
+            <div class="teach-back-input">
+
+                <label for="teachTopic">
+                    What topic are you explaining?
+                </label>
+
+                <input
+                    type="text"
+                    id="teachTopic"
+                    placeholder="Example: Binary Search"
+                >
+
+
+                <label for="teachAnswer">
+                    Teach it in your own words
+                </label>
+
+                <textarea
+                    id="teachAnswer"
+                    placeholder="Explain the topic as if you are teaching it to a friend..."
+                ></textarea>
+
+
+                <button class="teach-back-btn">
+                    🗣️ Check My Understanding
+                </button>
+
+            </div>
+
+
+            <div class="teach-back-output">
+
+                <div class="output-header">
+
+                    <span>
+                        ✦ MEMORA FEEDBACK
+                    </span>
+
+                    <span class="ai-status">
+                        READY
+                    </span>
+
+                </div>
+
+
+                <div class="teach-result">
+
+                    <div class="output-icon">
+                        🧠
+                    </div>
+
+                    <h3>
+                        Your understanding check will appear here
+                    </h3>
+
+                    <p>
+                        Explain a topic in your own words and MEMORA
+                        will help you identify what you understand
+                        and what you may need to revise.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+    <!-- UPLOAD & STUDY 📎 -->
+<section class="upload-study" id="upload-study">
+
+    <h2>📎 Upload & Study</h2>
+
+    <p class="section-description">
+        Upload your study material and let MEMORA help you learn it.
+    </p>
+
+    <div class="upload-box">
+
+        <div class="upload-content">
+
+            <div class="upload-icon">
+                📚
+            </div>
+
+            <h3>
+                Bring Your Study Material
+            </h3>
+
+            <p>
+                Upload notes, presentations, PDFs or images
+                and turn them into interactive learning.
+            </p>
+
+            <label for="studyFile" class="upload-button">
+                📂 Choose File
+            </label>
+
+            <input
+                type="file"
+                id="studyFile"
+                accept=".pdf,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.webp"
+                hidden
+            >
+
+            <p class="supported-files">
+                PDF • PPT • PPTX • TXT • JPG • PNG • WEBP
+            </p>
+
+            <div class="selected-file" id="selectedFile">
+                <span>📄</span>
+                <span>No file selected yet</span>
+            </div>
+            <div class="document-actions" id="documentActions">
+
+    <h3>🧠 What do you want to do?</h3>
+
+    <div class="document-action-buttons">
+
+        <button class="document-action-btn">
+            ✨ Summarize
+        </button>
+
+        <button class="document-action-btn">
+            🧠 Explain Simply
+        </button>
+
+        <button class="document-action-btn">
+            ⭐ Important Points
+        </button>
+
+        <button class="document-action-btn">
+            ❓ Generate Quiz
+        </button>
+
+    </div>
+
+</div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+    <!-- FOOTER -->
+    <footer>
+
+        <div class="logo">
+            ✦ MEMORA
+        </div>
+
+        <p>
+            Learn it. Understand it. Remember it.
+        </p>
+
+        <p class="footer-small">
+            AI-powered personalized learning platform
+        </p>
+
+    </footer>
+
+
+    <!-- JAVASCRIPT -->
+    <script src="script.js"></script>
+
+</body>
+
+</html>
+```
