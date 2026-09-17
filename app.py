@@ -3,7 +3,7 @@ import os
 import time
 from pypdf import PdfReader
 from pptx import Presentation
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
 from google import genai
@@ -521,6 +521,19 @@ def study_txt():
         return jsonify({
             "error": "MEMORA could not read this text file."
         }), 500
+        @app.route("/")
+def home():
+    return send_file("index.html")
+
+
+@app.route("/style.css")
+def css():
+    return send_file("style.css")
+
+
+@app.route("/script.js")
+def js():
+    return send_file("script.js")
 
         
 
