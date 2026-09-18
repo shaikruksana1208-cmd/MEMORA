@@ -76,7 +76,7 @@ generateButton.addEventListener("click", async function () {
     try {
 
         const response = await fetch(
-            "http://127.0.0.1:5000/api/generate",
+            "/api/generate",
             {
                 method: "POST",
 
@@ -721,7 +721,7 @@ teachBackButton.addEventListener("click", async function () {
 
         // Send topic + answer to Flask
         const response = await fetch(
-            "http://127.0.0.1:5000/api/generate",
+            "/api/generate",
             {
                 method: "POST",
 
@@ -916,7 +916,7 @@ document.addEventListener("click", async function (event) {
     try {
 
         const response = await fetch(
-            "http://127.0.0.1:5000/api/study-image",
+            "/api/study-image",
             {
                 method: "POST",
                 body: formData
@@ -1013,7 +1013,7 @@ document.addEventListener("click", async function (event) {
     try {
 
         const response = await fetch(
-            "http://127.0.0.1:5000/api/study-pdf",
+            "/api/study-pdf",
             {
                 method: "POST",
                 body: formData
@@ -1102,7 +1102,7 @@ document.addEventListener("click", async function (event) {
     try {
 
         const response = await fetch(
-            "http://127.0.0.1:5000/api/study-ppt",
+            /api/study-ppt",
             {
                 method: "POST",
                 body: formData
@@ -1193,7 +1193,7 @@ document.addEventListener("click", async function (event) {
     try {
 
         const response = await fetch(
-            "http://127.0.0.1:5000/api/study-txt",
+            "/api/study-txt",
             {
                 method: "POST",
                 body: formData
@@ -1288,7 +1288,7 @@ document.addEventListener("click", async function (event) {
     try {
 
         const response = await fetch(
-            "http://127.0.0.1:5000/api/generate",
+            "/api/generate",
             {
                 method: "POST",
 
@@ -1384,7 +1384,7 @@ document.addEventListener("click", async function (event) {
     try {
 
         const response = await fetch(
-            "http://127.0.0.1:5000/api/generate",
+            "/api/generate",
             {
                 method: "POST",
 
@@ -1480,7 +1480,7 @@ document.addEventListener("click", async function (event) {
     try {
 
         const response = await fetch(
-            "http://127.0.0.1:5000/api/generate",
+            "/api/generate",
             {
                 method: "POST",
 
@@ -1576,7 +1576,7 @@ document.addEventListener("click", async function (event) {
     try {
 
         const response = await fetch(
-            "http://127.0.0.1:5000/api/generate",
+            "/api/generate",
             {
                 method: "POST",
 
