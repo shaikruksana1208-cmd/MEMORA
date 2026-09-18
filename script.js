@@ -1102,7 +1102,7 @@ document.addEventListener("click", async function (event) {
     try {
 
         const response = await fetch(
-            /api/study-ppt",
+            "/api/study-ppt",
             {
                 method: "POST",
                 body: formData
