@@ -49,8 +49,10 @@ def generate_ai(prompt):
 
             error_text = str(error)
 
-            # Gemini quota error
-            if "429" in error_text or "RESOURCE_EXHAUSTED" in error_text:
+            if (
+                "429" in error_text
+                or "RESOURCE_EXHAUSTED" in error_text
+            ):
 
                 print("ERROR: Gemini quota exceeded.")
 
@@ -58,7 +60,6 @@ def generate_ai(prompt):
                     "MEMORA AI limit has been reached. Please try again later."
                 )
 
-            # Temporary Gemini server error
             if "503" in error_text and attempt < 2:
 
                 print("Gemini is busy. Retrying...")
@@ -81,7 +82,10 @@ def generate():
 
         data = request.get_json(silent=True) or {}
 
-        mode = data.get("mode", "explain")
+        mode = data.get(
+            "mode",
+            "explain"
+        )
 
 
         # ==================================================
@@ -102,9 +106,6 @@ def generate():
                 data.get("subjects", "")
             ).strip()
 
-            # IMPORTANT:
-            # studyHours may arrive as a number from JavaScript.
-            # Converting it to string prevents .strip() errors.
             study_hours = str(
                 data.get("studyHours", "")
             ).strip()
@@ -169,9 +170,9 @@ def generate():
             # ------------------------------
 
             planner_prompt = f"""
-You are MEMORA, an AI-powered study planning assistant.
+You are MEMORA, an intelligent college exam study planner.
 
-Create a realistic personalized study plan for a college student.
+Create a SPECIFIC, PRACTICAL and SUBJECT-WISE study plan.
 
 EXAM:
 {exam_name}
@@ -186,50 +187,110 @@ DAILY STUDY TIME:
 {study_hours} hours
 
 
-IMPORTANT RULES:
+IMPORTANT:
 
-1. Use ONLY the subjects provided above.
+The subject names above may be broad subjects such as:
 
-2. Do NOT repeat the exact same topic every day.
+- Data Structures
+- History
+- DBMS
+- Java
+- Artificial Intelligence
+- Mathematics
 
-3. Break each subject into meaningful smaller topics,
-   concepts, chapters, or skills.
+DO NOT treat the broad subject name itself as the study topic.
 
-4. Start with fundamentals.
+You must break every subject into smaller academic topics.
 
-5. Then move to important concepts.
+For example:
 
-6. Then include examples, problem solving,
-   coding practice, diagrams, or application practice
-   where appropriate.
+Data Structures can contain topics such as:
+- Arrays
+- Linked Lists
+- Stacks
+- Queues
+- Trees
+- Graphs
+- Searching
+- Sorting
+- Algorithms
+- Complexity
 
-7. Near the exam, focus more on revision,
-   active recall, previous questions, mock tests,
-   and weak areas.
+History can contain topics such as:
+- Historical events
+- Causes
+- Important dates
+- Important people
+- Major developments
+- Effects
+- Comparisons
+- Previous-question revision
 
-8. Distribute subjects fairly.
+However, ONLY use topics that are reasonably connected to the subject.
+Do not randomly combine unrelated subjects.
 
-9. Do not invent unrelated subjects.
 
-10. Do not make every session simply say
-    "study the subject".
+CORE RULES:
 
-11. Every session must contain a specific topic.
+1. Use ONLY the subjects provided by the student.
 
-12. Every session must contain a useful activity.
+2. NEVER make the entire day simply:
+   "Study Data Structures"
+   or
+   "Study History".
 
-13. Make the progression logical.
+3. Every session must contain a SPECIFIC topic.
 
-14. Do not repeat the same topic unless it is explicitly
-    a revision or practice session.
+4. Every session must contain a SPECIFIC activity.
 
-15. Keep the plan realistic for a college student.
+5. Break broad subjects into multiple smaller topics.
 
-16. Return ONLY valid JSON.
+6. Do not repeat the same topic on different days unless
+   the session is clearly revision, practice, or active recall.
 
-17. Do NOT use Markdown code fences.
+7. Distribute the subjects fairly.
 
-18. Create this exact JSON structure:
+8. Alternate subjects when possible so the student does
+   not study the same subject continuously.
+
+9. Start with fundamentals.
+
+10. Move from fundamentals to important concepts,
+    applications, examples and problem solving.
+
+11. Include coding/problem-solving practice for technical
+    subjects when appropriate.
+
+12. Include dates, events, causes, effects and active recall
+    for History when appropriate.
+
+13. Include revision and active recall near the end.
+
+14. Include a mock test or previous-question practice
+    near the exam.
+
+15. The plan must fit within the student's daily study time.
+
+16. Each day must have exactly 2 study sessions.
+
+17. Each session should represent roughly half of the
+    available daily study time.
+
+18. Use concise topic names.
+
+19. The student should immediately understand WHAT to study
+    and WHAT to do.
+
+20. Do not create a generic timetable.
+
+21. Do not invent unrelated subjects.
+
+22. Return ONLY valid JSON.
+
+23. Do NOT use Markdown code fences.
+
+
+RETURN EXACTLY THIS STRUCTURE:
 
 {{
     "days": [
@@ -237,10 +298,12 @@ IMPORTANT RULES:
             "day": 1,
             "sessions": [
                 {{
+                    "subject": "Data Structures",
                     "topic": "specific topic",
                     "activity": "specific study activity"
                 }},
                 {{
+                    "subject": "History",
                     "topic": "specific topic",
                     "activity": "specific study activity"
                 }}
@@ -250,18 +313,53 @@ IMPORTANT RULES:
     ]
 }}
 
-Each day must have exactly 2 sessions.
 
-Use short and clear topic names.
+IMPORTANT:
 
-The student should be able to look at the plan
-and immediately know what to study.
+The "subject" field must contain the actual subject.
+
+The "topic" field must contain a smaller topic INSIDE that subject.
+
+The "activity" field must explain what the student should actually do.
+
+
+BAD:
+
+{{
+    "subject": "Data Structures",
+    "topic": "Data Structures",
+    "activity": "Study Data Structures"
+}}
+
+
+GOOD:
+
+{{
+    "subject": "Data Structures",
+    "topic": "Linked List Insertion and Deletion",
+    "activity": "Trace insertion and deletion algorithms and solve 2 practice problems"
+}}
+
+
+Create a logical progression across the days.
+
+If there are many days, use later days for:
+
+- revision
+- active recall
+- practice questions
+- mock tests
+- weak-topic revision
+
+Make the plan useful for actual exam preparation.
 """
 
 
             try:
 
-                ai_text = generate_ai(planner_prompt)
+                ai_text = generate_ai(
+                    planner_prompt
+                )
 
             except Exception as error:
 
@@ -274,10 +372,14 @@ and immediately know what to study.
                         "error": str(error)
                     }), 429
 
-                print("PLANNER AI ERROR:", error)
+                print(
+                    "PLANNER AI ERROR:",
+                    error
+                )
 
                 return jsonify({
-                    "error": "MEMORA could not create the study plan. Please try again."
+                    "error":
+                    "MEMORA could not create the study plan. Please try again."
                 }), 500
 
 
@@ -287,9 +389,11 @@ and immediately know what to study.
 
             ai_text = ai_text.strip()
 
+
             if ai_text.startswith("```json"):
 
                 ai_text = ai_text[7:]
+
 
             elif ai_text.startswith("```"):
 
@@ -310,34 +414,48 @@ and immediately know what to study.
 
             try:
 
-                planner_data = json.loads(ai_text)
+                planner_data = json.loads(
+                    ai_text
+                )
 
             except json.JSONDecodeError as error:
 
-                print("PLANNER JSON ERROR:", error)
+                print(
+                    "PLANNER JSON ERROR:",
+                    error
+                )
 
-                print("AI RESPONSE:", ai_text)
+                print(
+                    "AI RESPONSE:",
+                    ai_text
+                )
 
                 return jsonify({
-                    "error": "MEMORA received an invalid study plan. Please try again."
+                    "error":
+                    "MEMORA received an invalid study plan. Please try again."
                 }), 500
 
 
             # ------------------------------
-            # VALIDATE JSON STRUCTURE
+            # VALIDATE JSON
             # ------------------------------
 
-            if not isinstance(planner_data, dict):
+            if not isinstance(
+                planner_data,
+                dict
+            ):
 
                 return jsonify({
-                    "error": "MEMORA could not create a valid study plan."
+                    "error":
+                    "MEMORA could not create a valid study plan."
                 }), 500
 
 
             if "days" not in planner_data:
 
                 return jsonify({
-                    "error": "MEMORA could not create a valid study plan."
+                    "error":
+                    "MEMORA could not create a valid study plan."
                 }), 500
 
 
@@ -347,7 +465,8 @@ and immediately know what to study.
             ):
 
                 return jsonify({
-                    "error": "MEMORA could not create a valid study plan."
+                    "error":
+                    "MEMORA could not create a valid study plan."
                 }), 500
 
 
@@ -659,6 +778,61 @@ Topic:
 """
 
 
+        # ==================================================
+        # QUICK STUDY
+        # ==================================================
+
+        elif mode == "quick-study":
+
+            prompt = f"""
+You are MEMORA, a friendly AI learning assistant.
+
+The student wants to quickly learn this topic:
+
+{user_input}
+
+Actually TEACH the topic.
+
+Do NOT create a timetable.
+
+Use this structure:
+
+## 🧠 What Is It?
+
+Explain the topic simply.
+
+## 📌 Core Concept
+
+Explain the most important idea.
+
+## ⭐ Important Points
+
+Give the key things the student should remember.
+
+## 💡 Simple Example
+
+Give one easy example.
+
+## ❓ Quick Practice
+
+Give one short practice question.
+
+## 🧠 Memory Trick
+
+Give one easy way to remember it.
+
+## 🔁 Final Recap
+
+Give 3 to 5 short revision points.
+
+Use simple student-friendly language.
+
+Do not use LaTeX.
+
+Do not use dollar signs for mathematical notation.
+"""
+
+
         else:
 
             return jsonify({
@@ -672,7 +846,9 @@ Topic:
 
         try:
 
-            result = generate_ai(prompt)
+            result = generate_ai(
+                prompt
+            )
 
         except Exception as error:
 
@@ -687,10 +863,14 @@ Topic:
                     "error": error_text
                 }), 429
 
-            print("AI ERROR:", error)
+            print(
+                "AI ERROR:",
+                error
+            )
 
             return jsonify({
-                "error": "MEMORA could not generate a response. Please try again."
+                "error":
+                "MEMORA could not generate a response. Please try again."
             }), 500
 
 
@@ -701,10 +881,14 @@ Topic:
 
     except Exception as error:
 
-        print("ERROR:", error)
+        print(
+            "ERROR:",
+            error
+        )
 
         return jsonify({
-            "error": "MEMORA could not generate a response. Please try again."
+            "error":
+            "MEMORA could not generate a response. Please try again."
         }), 500
 
 
@@ -794,7 +978,10 @@ Do not use dollar signs for mathematics.
 
     except Exception as error:
 
-        print("IMAGE ERROR:", error)
+        print(
+            "IMAGE ERROR:",
+            error
+        )
 
         if (
             "429" in str(error)
@@ -802,12 +989,14 @@ Do not use dollar signs for mathematics.
         ):
 
             return jsonify({
-                "error": "MEMORA AI limit has been reached. Please try again later."
+                "error":
+                "MEMORA AI limit has been reached. Please try again later."
             }), 429
 
 
         return jsonify({
-            "error": "MEMORA could not study this image."
+            "error":
+            "MEMORA could not study this image."
         }), 500
 
 
@@ -837,7 +1026,9 @@ def study_pdf():
             }), 400
 
 
-        reader = PdfReader(pdf_file)
+        reader = PdfReader(
+            pdf_file
+        )
 
         text = ""
 
@@ -854,7 +1045,8 @@ def study_pdf():
         if not text.strip():
 
             return jsonify({
-                "error": "MEMORA could not find readable text in this PDF."
+                "error":
+                "MEMORA could not find readable text in this PDF."
             }), 400
 
 
@@ -865,10 +1057,14 @@ def study_pdf():
 
     except Exception as error:
 
-        print("PDF ERROR:", error)
+        print(
+            "PDF ERROR:",
+            error
+        )
 
         return jsonify({
-            "error": "MEMORA could not read this PDF."
+            "error":
+            "MEMORA could not read this PDF."
         }), 500
 
 
@@ -884,7 +1080,8 @@ def study_ppt():
         if "file" not in request.files:
 
             return jsonify({
-                "error": "Please upload a PowerPoint file."
+                "error":
+                "Please upload a PowerPoint file."
             }), 400
 
 
@@ -894,11 +1091,14 @@ def study_ppt():
         if ppt_file.filename == "":
 
             return jsonify({
-                "error": "Please choose a PowerPoint file."
+                "error":
+                "Please choose a PowerPoint file."
             }), 400
 
 
-        presentation = Presentation(ppt_file)
+        presentation = Presentation(
+            ppt_file
+        )
 
         text = ""
 
@@ -908,7 +1108,9 @@ def study_ppt():
             start=1
         ):
 
-            text += f"\n--- Slide {slide_number} ---\n"
+            text += (
+                f"\n--- Slide {slide_number} ---\n"
+            )
 
 
             for shape in slide.shapes:
@@ -917,13 +1119,17 @@ def study_ppt():
 
                     if shape.text.strip():
 
-                        text += shape.text + "\n"
+                        text += (
+                            shape.text
+                            + "\n"
+                        )
 
 
         if not text.strip():
 
             return jsonify({
-                "error": "MEMORA could not find readable text in this presentation."
+                "error":
+                "MEMORA could not find readable text in this presentation."
             }), 400
 
 
@@ -934,10 +1140,14 @@ def study_ppt():
 
     except Exception as error:
 
-        print("PPT ERROR:", error)
+        print(
+            "PPT ERROR:",
+            error
+        )
 
         return jsonify({
-            "error": "MEMORA could not read this presentation."
+            "error":
+            "MEMORA could not read this presentation."
         }), 500
 
 
@@ -953,7 +1163,8 @@ def study_txt():
         if "file" not in request.files:
 
             return jsonify({
-                "error": "Please upload a text file."
+                "error":
+                "Please upload a text file."
             }), 400
 
 
@@ -963,7 +1174,8 @@ def study_txt():
         if txt_file.filename == "":
 
             return jsonify({
-                "error": "Please choose a text file."
+                "error":
+                "Please choose a text file."
             }), 400
 
 
@@ -976,7 +1188,8 @@ def study_txt():
         if not text.strip():
 
             return jsonify({
-                "error": "MEMORA could not find any readable text in this file."
+                "error":
+                "MEMORA could not find any readable text in this file."
             }), 400
 
 
@@ -987,10 +1200,14 @@ def study_txt():
 
     except Exception as error:
 
-        print("TXT ERROR:", error)
+        print(
+            "TXT ERROR:",
+            error
+        )
 
         return jsonify({
-            "error": "MEMORA could not read this text file."
+            "error":
+            "MEMORA could not read this text file."
         }), 500
 
 
@@ -1001,19 +1218,25 @@ def study_txt():
 @app.route("/")
 def home():
 
-    return send_file("index.html")
+    return send_file(
+        "index.html"
+    )
 
 
 @app.route("/style.css")
 def css():
 
-    return send_file("style.css")
+    return send_file(
+        "style.css"
+    )
 
 
 @app.route("/script.js")
 def js():
 
-    return send_file("script.js")
+    return send_file(
+        "script.js"
+    )
 
 
 # ==========================================================
@@ -1025,5 +1248,3 @@ if __name__ == "__main__":
     app.run(
         debug=True
     )
-
-
