@@ -1320,22 +1320,38 @@ let pomodoroSeconds = 25 * 60;
 
 let pomodoroRunning = false;
 
-const pomodoroDisplay =
-    document.querySelector("#pomodoroTimer") ||
-    document.querySelector(".pomodoro-timer");
+let selectedFocusMinutes = 25;
 
-const pomodoroStart =
-    document.querySelector("#pomodoroStart") ||
-    document.querySelector(".pomodoro-start");
+let selectedBreakMinutes = 5;
 
-const pomodoroReset =
-    document.querySelector("#pomodoroReset") ||
-    document.querySelector(".pomodoro-reset");
+let pomodoroPhase = "focus";
+
+const timerMode =
+    document.querySelector("#timerMode");
+
+const timerDisplay =
+    document.querySelector("#timerDisplay");
+
+const timerMessage =
+    document.querySelector("#timerMessage");
+
+const startTimer =
+    document.querySelector("#startTimer");
+
+const pauseTimer =
+    document.querySelector("#pauseTimer");
+
+const resetTimer =
+    document.querySelector("#resetTimer");
+
+const timerOptions =
+    document.querySelectorAll(".timer-option");
+
 
 
 function updatePomodoroDisplay() {
 
-    if (!pomodoroDisplay) {
+    if (!timerDisplay) {
         return;
     }
 
@@ -1348,11 +1364,67 @@ function updatePomodoroDisplay() {
         pomodoroSeconds % 60;
 
 
-    pomodoroDisplay.textContent =
+    timerDisplay.textContent =
 
         `${String(minutes).padStart(2, "0")}:${String(
             seconds
         ).padStart(2, "0")}`;
+
+}
+
+
+function updatePomodoroMessage() {
+
+    if (timerMode) {
+
+        timerMode.textContent =
+            pomodoroPhase === "focus"
+                ? "FOCUS TIME"
+                : "BREAK TIME";
+
+    }
+
+    if (timerMessage) {
+
+        timerMessage.textContent =
+            pomodoroPhase === "focus"
+                ? "Time to focus on your studies."
+                : "Take a short break and recharge.";
+
+    }
+
+}
+
+
+function resetPomodoroDuration() {
+
+    pomodoroPhase = "focus";
+
+    pomodoroSeconds =
+        selectedFocusMinutes * 60;
+
+    updatePomodoroDisplay();
+
+    updatePomodoroMessage();
+
+}
+
+
+function finishPomodoroPhase() {
+
+    pomodoroPhase =
+        pomodoroPhase === "focus"
+            ? "break"
+            : "focus";
+
+    pomodoroSeconds =
+        (pomodoroPhase === "focus"
+            ? selectedFocusMinutes
+            : selectedBreakMinutes) * 60;
+
+    updatePomodoroDisplay();
+
+    updatePomodoroMessage();
 
 }
 
@@ -1367,14 +1439,6 @@ function startPomodoro() {
     pomodoroRunning = true;
 
 
-    if (pomodoroStart) {
-
-        pomodoroStart.textContent =
-            "⏸ Pause";
-
-    }
-
-
     pomodoroInterval =
         setInterval(
             function () {
@@ -1387,26 +1451,7 @@ function startPomodoro() {
 
                 } else {
 
-                    clearInterval(
-                        pomodoroInterval
-                    );
-
-                    pomodoroInterval = null;
-
-                    pomodoroRunning = false;
-
-
-                    if (pomodoroStart) {
-
-                        pomodoroStart.textContent =
-                            "▶ Start";
-
-                    }
-
-
-                    alert(
-                        "🎉 Focus session complete! Take a short break."
-                    );
+                    finishPomodoroPhase();
 
                 }
 
@@ -1433,13 +1478,6 @@ function pausePomodoro() {
     pomodoroRunning = false;
 
 
-    if (pomodoroStart) {
-
-        pomodoroStart.textContent =
-            "▶ Start";
-
-    }
-
 }
 
 
@@ -1453,53 +1491,68 @@ function resetPomodoro() {
 
     pomodoroRunning = false;
 
-    pomodoroSeconds =
-        25 * 60;
-
-
-    updatePomodoroDisplay();
-
-
-    if (pomodoroStart) {
-
-        pomodoroStart.textContent =
-            "▶ Start";
-
-    }
+    resetPomodoroDuration();
 
 }
 
 
-if (pomodoroStart) {
+timerOptions.forEach(function (button) {
 
-    pomodoroStart.addEventListener(
+    button.addEventListener(
         "click",
         function () {
 
-            if (pomodoroRunning) {
+            timerOptions.forEach(function (option) {
+                option.classList.remove("active");
+            });
 
-                pausePomodoro();
+            button.classList.add("active");
 
-            } else {
+            selectedFocusMinutes =
+                Number(button.dataset.focus);
 
-                startPomodoro();
+            selectedBreakMinutes =
+                Number(button.dataset.break);
 
-            }
+            resetPomodoro();
 
         }
+    );
+
+});
+
+
+if (startTimer) {
+
+    startTimer.addEventListener(
+        "click",
+        startPomodoro
     );
 
 }
 
 
-if (pomodoroReset) {
+if (pauseTimer) {
 
-    pomodoroReset.addEventListener(
+    pauseTimer.addEventListener(
+        "click",
+        pausePomodoro
+    );
+
+}
+
+
+if (resetTimer) {
+
+    resetTimer.addEventListener(
         "click",
         resetPomodoro
     );
 
 }
+
+
+resetPomodoro();
 
 
 updatePomodoroDisplay();
@@ -1799,6 +1852,9 @@ Actually explain and teach the topic.
 const teachButton =
     document.querySelector(".teach-back-btn");
 
+const teachTopic =
+    document.querySelector("#teachTopic");
+
 const teachInput =
     document.querySelector("#teachAnswer");
 
@@ -1812,13 +1868,18 @@ if (teachButton) {
         "click",
         async function () {
 
+            const topic =
+                teachTopic
+                    ? teachTopic.value.trim()
+                    : "";
+
             const answer =
                 teachInput
                     ? teachInput.value.trim()
                     : "";
 
 
-            if (!answer) {
+            if (!topic || !answer) {
 
                 if (teachResult) {
 
@@ -1829,12 +1890,11 @@ if (teachButton) {
                         </div>
 
                         <h3>
-                            Explain something first
+                            Enter a topic and explanation first
                         </h3>
 
                         <p>
-                            Write what you remember
-                            and MEMORA will check it.
+                            Add the topic and explain it in your own words.
                         </p>
 
                     `;
@@ -1877,6 +1937,10 @@ You are MEMORA, a supportive learning assistant.
 
 The student is trying to teach a concept back to you.
 
+Topic:
+
+${topic}
+
 Student explanation:
 
 ${answer}
@@ -1912,7 +1976,7 @@ Do not use LaTeX or dollar signs.
 
                                 input: prompt,
 
-                                mode: "teach-back"
+                                mode: "teach"
 
                             })
 
@@ -2007,14 +2071,11 @@ let uploadedStudyText = "";
 let uploadedFileName = "";
 
 
-const studyFileInput =
+const studyFile =
     document.querySelector("#studyFile");
 
-const uploadStudyButton =
-    document.querySelector(".upload-study-btn");
-
 const uploadResult =
-    document.querySelector(".upload-result");
+    document.querySelector("#documentActions");
 
 
 // ==========================================================
@@ -2029,29 +2090,32 @@ function isAllowedStudyFile(file) {
 
 
     const allowedTypes = [
-
         "application/pdf",
-
         "text/plain",
-
         "application/vnd.ms-powerpoint",
-
         "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-
         "image/png",
-
         "image/jpeg",
-
         "image/jpg",
-
         "image/webp"
-
     ];
 
+    const allowedExtensions = [
+        "pdf",
+        "ppt",
+        "pptx",
+        "txt",
+        "jpg",
+        "jpeg",
+        "png",
+        "webp"
+    ];
 
-    return allowedTypes.includes(
-        file.type
-    );
+    const extension =
+        file.name.toLowerCase().split(".").pop();
+
+    return allowedTypes.includes(file.type) ||
+        allowedExtensions.includes(extension);
 
 }
 
@@ -2060,15 +2124,13 @@ function isAllowedStudyFile(file) {
 // FILE UPLOAD
 // ==========================================================
 
-if (uploadStudyButton) {
+if (studyFile) {
 
-    uploadStudyButton.addEventListener(
-        "click",
-        async function () {
+    studyFile.addEventListener("change", async function () {
 
             const file =
-                studyFileInput
-                    ? studyFileInput.files[0]
+                studyFile
+                    ? studyFile.files[0]
                     : null;
 
 
@@ -2131,6 +2193,20 @@ if (uploadStudyButton) {
             uploadedFileName =
                 file.name;
 
+            const selectedFileName =
+                document.querySelector(
+                    "#selectedFile span:last-child"
+                );
+
+            if (selectedFileName) {
+                selectedFileName.textContent =
+                    file.name;
+            }
+
+            if (uploadResult) {
+                uploadResult.style.display = "block";
+            }
+
 
             if (uploadResult) {
 
@@ -2169,9 +2245,12 @@ if (uploadStudyButton) {
                 let endpoint = "";
 
 
+                const fileExtension =
+                    file.name.toLowerCase().split(".").pop();
+
                 if (
-                    file.type ===
-                    "application/pdf"
+                    file.type === "application/pdf" ||
+                    fileExtension === "pdf"
                 ) {
 
                     endpoint =
@@ -2181,8 +2260,8 @@ if (uploadStudyButton) {
 
                 else if (
 
-                    file.type ===
-                    "text/plain"
+                    file.type === "text/plain" ||
+                    fileExtension === "txt"
 
                 ) {
 
@@ -2193,13 +2272,10 @@ if (uploadStudyButton) {
 
                 else if (
 
-                    file.type ===
-                    "application/vnd.ms-powerpoint"
-
-                    ||
-
-                    file.type ===
-                    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                    file.type === "application/vnd.ms-powerpoint" ||
+                    file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+                    fileExtension === "ppt" ||
+                    fileExtension === "pptx"
 
                 ) {
 
@@ -2210,9 +2286,8 @@ if (uploadStudyButton) {
 
                 else if (
 
-                    file.type.startsWith(
-                        "image/"
-                    )
+                    file.type.startsWith("image/") ||
+                    ["jpg", "jpeg", "png", "webp"].includes(fileExtension)
 
                 ) {
 
@@ -2221,6 +2296,15 @@ if (uploadStudyButton) {
 
                 }
 
+
+                if (!endpoint) {
+                    throw new Error("Unable to determine the file type.");
+                }
+
+                if (endpoint === "/api/study-image") {
+                    formData.delete("file");
+                    formData.append("image", file);
+                }
 
                 const response =
                     await fetch(
@@ -2263,9 +2347,8 @@ if (uploadStudyButton) {
 
 
                 if (
-                    file.type.startsWith(
-                        "image/"
-                    )
+                    file.type.startsWith("image/") ||
+                    ["jpg", "jpeg", "png", "webp"].includes(fileExtension)
                 ) {
 
                     const imageURL =
@@ -2318,7 +2401,7 @@ if (uploadStudyButton) {
                         <div class="document-actions">
 
                             <button
-                                class="document-ai-btn"
+                                class="document-action-btn"
                                 data-action="summarize"
                             >
                                 ✨ Summarize
@@ -2326,7 +2409,7 @@ if (uploadStudyButton) {
 
 
                             <button
-                                class="document-ai-btn"
+                                class="document-action-btn"
                                 data-action="explain"
                             >
                                 🧠 Explain Simply
@@ -2334,7 +2417,7 @@ if (uploadStudyButton) {
 
 
                             <button
-                                class="document-ai-btn"
+                                class="document-action-btn"
                                 data-action="important"
                             >
                                 ⭐ Important Points
@@ -2342,7 +2425,7 @@ if (uploadStudyButton) {
 
 
                             <button
-                                class="document-ai-btn"
+                                class="document-action-btn"
                                 data-action="quiz"
                             >
                                 ❓ Generate Quiz
@@ -2410,7 +2493,7 @@ function attachDocumentButtons() {
 
     const buttons =
         document.querySelectorAll(
-            ".document-ai-btn"
+            ".document-action-btn"
         );
 
 
@@ -2667,44 +2750,6 @@ for a student.
 
                 }
             );
-
-        }
-    );
-
-}
-
-
-// ==========================================================
-// FILE INPUT PREVIEW
-// ==========================================================
-
-if (studyFileInput) {
-
-    studyFileInput.addEventListener(
-        "change",
-        function () {
-
-            const file =
-                studyFileInput.files[0];
-
-
-            if (!file) {
-                return;
-            }
-
-
-            const fileName =
-                document.querySelector(
-                    ".selected-file-name"
-                );
-
-
-            if (fileName) {
-
-                fileName.textContent =
-                    file.name;
-
-            }
 
         }
     );
