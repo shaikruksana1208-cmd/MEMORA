@@ -1,19 +1,37 @@
-// ==============================
-// MEMORA - START LEARNING
-// ==============================
+// ==========================================================
+// MEMORA - COMPLETE SCRIPT
+// PART 1
+// ==========================================================
+
+
+// ==========================================================
+// START LEARNING
+// ==========================================================
 
 const startButton = document.querySelector(".start-btn");
 
-startButton.addEventListener("click", function () {
-    document.querySelector(".features").scrollIntoView({
-        behavior: "smooth"
+if (startButton) {
+
+    startButton.addEventListener("click", function () {
+
+        const features = document.querySelector(".features");
+
+        if (features) {
+
+            features.scrollIntoView({
+                behavior: "smooth"
+            });
+
+        }
+
     });
-});
+
+}
 
 
-// ==============================
-// MEMORA - STUDY MODES
-// ==============================
+// ==========================================================
+// STUDY MODES
+// ==========================================================
 
 const modeButtons = document.querySelectorAll(".mode-btn");
 
@@ -24,1620 +42,2786 @@ modeButtons.forEach(function (button) {
     button.addEventListener("click", function () {
 
         modeButtons.forEach(function (btn) {
+
             btn.classList.remove("active");
+
         });
 
         button.classList.add("active");
 
         selectedMode = button.dataset.mode;
 
-        console.log("Selected mode:", selectedMode);
     });
 
 });
 
 
-// ==============================
-// MEMORA - GENERATE AI RESULT
-// ==============================
+// ==========================================================
+// AI TEXT CLEANER
+// Removes ugly $ and LaTeX symbols from AI answers
+// ==========================================================
 
-const generateButton = document.querySelector(".generate-btn");
-const studyInput = document.querySelector("#studyInput");
-const outputContent = document.querySelector(".output-content");
+function cleanAIText(text) {
 
-generateButton.addEventListener("click", async function () {
-
-    const userInput = studyInput.value.trim();
-
-    // Check empty input
-    if (userInput === "") {
-
-        outputContent.innerHTML = `
-            <div class="output-icon">⚠️</div>
-            <h3>Please enter something first</h3>
-            <p>
-                Enter a topic, question, notes, or your answer
-                before generating a result.
-            </p>
-        `;
-
-        return;
+    if (!text) {
+        return "";
     }
 
+    return String(text)
 
-    // Loading message
-    outputContent.innerHTML = `
-        <div class="output-icon">⏳</div>
-        <h3>MEMORA is thinking...</h3>
-        <p>Creating your learning result.</p>
-    `;
+        // Remove $$ equation wrappers
+        .replace(/\$\$([\s\S]*?)\$\$/g, "$1")
 
+        // Remove $ equation wrappers
+        .replace(/\$([^$\n]+)\$/g, "$1")
 
-    try {
+        // Remove \( \)
+        .replace(/\\\(([\s\S]*?)\\\)/g, "$1")
 
-        const response = await fetch(
-            "/api/generate",
-            {
-                method: "POST",
+        // Remove \[ \]
+        .replace(/\\\[([\s\S]*?)\\\]/g, "$1")
 
-                headers: {
-                    "Content-Type": "application/json"
-                },
+        // Fractions
+        .replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, "$1/$2")
 
-                body: JSON.stringify({
-                    input: userInput,
-                    mode: selectedMode
-                })
-            }
-        );
+        // Common math symbols
+        .replace(/\\times/g, "×")
+        .replace(/\\div/g, "÷")
+        .replace(/\\cdot/g, "·")
+        .replace(/\\pm/g, "±")
+        .replace(/\\leq/g, "≤")
+        .replace(/\\geq/g, "≥")
+        .replace(/\\neq/g, "≠")
 
+        // Square root
+        .replace(/\\sqrt\{([^{}]+)\}/g, "√($1)")
 
-        const data = await response.json();
+        // Text command
+        .replace(/\\text\{([^{}]*)\}/g, "$1")
 
+        // Remove left/right commands
+        .replace(/\\left/g, "")
+        .replace(/\\right/g, "")
 
-        // API ERROR
-if (!response.ok) {
+        // Remove remaining simple LaTeX commands
+        .replace(/\\([a-zA-Z]+)/g, "$1")
 
-    if (response.status === 429) {
+        .trim();
 
-        outputContent.innerHTML = `
-            <div class="output-icon">⏳</div>
-            <h3>AI LIMIT REACHED</h3>
-            <p>
-                MEMORA has reached today's AI request limit.
-            </p>
-            <p>
-                Please try again later when the AI limit resets.
-            </p>
-        `;
-
-    } else {
-
-        outputContent.innerHTML = `
-            <div class="output-icon">⚠️</div>
-            <h3>MEMORA ERROR</h3>
-            <p>
-                ${data.error || "Something went wrong."}
-            </p>
-        `;
-    }
-
-    return;
 }
 
 
-        // SUCCESS
-        outputContent.innerHTML = `
-            <div class="output-icon">🤖</div>
+// ==========================================================
+// RENDER AI RESPONSE
+// ==========================================================
 
-            <h3>MEMORA'S RESPONSE</h3>
+function renderAIText(text) {
 
-            <div class="ai-response">
-                ${marked.parse(data.result)}
-            </div>
-        `;
+    const cleanedText = cleanAIText(text);
 
+    if (typeof marked !== "undefined") {
 
-    } catch (error) {
+        return marked.parse(cleanedText);
 
-        outputContent.innerHTML = `
-            <div class="output-icon">⚠️</div>
-
-            <h3>MEMORA needs a moment</h3>
-
-            <p>
-                We couldn't generate your learning result.
-                Please check your connection and try again.
-            </p>
-        `;
-
-        console.error("MEMORA ERROR:", error);
     }
 
-});
+    return cleanedText.replace(/\n/g, "<br>");
 
-
-// ==============================
-// MEMORA - STUDY PLANNER
-// ==============================
-
-const plannerButton = document.querySelector(".planner-btn");
-
-const examName = document.querySelector("#examName");
-const examDate = document.querySelector("#examDate");
-const subjects = document.querySelector("#subjects");
-const studyHours = document.querySelector("#studyHours");
-
-const plannerResult = document.querySelector(".planner-result");
-
-
-plannerButton.addEventListener("click", function () {
-
-    // Get values
-    const name = examName.value.trim();
-    const date = examDate.value;
-    const subjectText = subjects.value.trim();
-    const hours = studyHours.value;
-
-
-    // ==============================
-    // VALIDATION
-    // ==============================
-
-    if (
-        name === "" ||
-        date === "" ||
-        subjectText === "" ||
-        hours === ""
-    ) {
-
-        plannerResult.innerHTML = `
-            <div class="output-icon">⚠️</div>
-
-            <h3>Please fill all details</h3>
-
-            <p>
-                Enter your exam name, exam date,
-                subjects and daily study time.
-            </p>
-        `;
-
-        return;
-    }
-
-
-    // ==============================
-    // CALCULATE DAYS
-    // ==============================
-
-    const today = new Date();
-
-    today.setHours(0, 0, 0, 0);
-
-    const exam = new Date(date);
-
-    exam.setHours(0, 0, 0, 0);
-
-
-    const difference =
-        exam.getTime() - today.getTime();
-
-    const daysLeft =
-        Math.ceil(
-            difference / (1000 * 60 * 60 * 24)
-        );
-
-
-    // Check past date
-    if (daysLeft < 1) {
-
-        plannerResult.innerHTML = `
-            <div class="output-icon">⚠️</div>
-
-            <h3>Choose a future exam date</h3>
-
-            <p>
-                Your exam date should be at least
-                one day from today.
-            </p>
-        `;
-
-        return;
-    }
-
-
-    // ==============================
-    // GET SUBJECTS
-    // ==============================
-
-    const subjectList = subjectText
-        .split("\n")
-        .map(function (subject) {
-            return subject.trim();
-        })
-        .filter(function (subject) {
-            return subject !== "";
-        });
-
-
-    if (subjectList.length === 0) {
-
-        plannerResult.innerHTML = `
-            <div class="output-icon">⚠️</div>
-
-            <h3>Please enter your subjects</h3>
-
-            <p>
-                Add at least one subject to create
-                your study plan.
-            </p>
-        `;
-
-        return;
-    }
-
-
-    // ==============================
-    // CREATE BASIC PLAN
-    // ==============================
-
-    let planHTML = `
-        <div class="output-icon">📚</div>
-
-        <h3>${name}</h3>
-
-        <p>
-            You have <strong>${daysLeft} days</strong>
-            remaining.
-        </p>
-
-        <p>
-            Daily study time:
-            <strong>${hours} hour(s)</strong>
-        </p>
-
-        <hr>
-
-        <h3>📅 Your Study Plan</h3>
-    `;
-
-
-    // Create subject schedule
-    subjectList.forEach(function (subject, index) {
-
-        const dayNumber =
-            (index % daysLeft) + 1;
-
-        planHTML += `
-            <p>
-                <strong>Day ${dayNumber}:</strong>
-                ${subject}
-            </p>
-        `;
-
-    });
-
-
-    planHTML += `
-        <hr>
-
-        <p>
-            💡 <strong>MEMORA Tip:</strong>
-            Study actively, take short breaks,
-            and revise important topics regularly.
-        </p>
-    `;
-
-
-    // Show plan
-    plannerResult.innerHTML = planHTML;
-
-});
-// ==============================
-// MEMORA - POMODORO TIMER
-// ==============================
-
-const timerDisplay = document.querySelector("#timerDisplay");
-const timerMode = document.querySelector("#timerMode");
-const timerMessage = document.querySelector("#timerMessage");
-
-const startTimerButton = document.querySelector("#startTimer");
-const pauseTimerButton = document.querySelector("#pauseTimer");
-const resetTimerButton = document.querySelector("#resetTimer");
-
-const timerOptions = document.querySelectorAll(".timer-option");
-
-
-// Default timer
-let focusMinutes = 25;
-let breakMinutes = 5;
-
-let timeLeft = focusMinutes * 60;
-
-let timerInterval = null;
-
-let isFocusTime = true;
-
-
-// ==============================
-// DISPLAY TIMER
-// ==============================
-
-function updateTimerDisplay() {
-
-    const minutes = Math.floor(timeLeft / 60);
-
-    const seconds = timeLeft % 60;
-
-    timerDisplay.textContent =
-        String(minutes).padStart(2, "0") +
-        ":" +
-        String(seconds).padStart(2, "0");
 }
 
 
-// Show initial timer
-updateTimerDisplay();
+// ==========================================================
+// MAIN AI GENERATOR
+// ==========================================================
+
+const generateButton =
+    document.querySelector(".generate-btn");
+
+const studyInput =
+    document.querySelector("#studyInput");
+
+const outputContent =
+    document.querySelector(".output-content");
 
 
-// ==============================
-// TIMER OPTIONS
-// ==============================
+if (generateButton) {
 
-timerOptions.forEach(function (button) {
+    generateButton.addEventListener(
+        "click",
+        async function () {
 
-    button.addEventListener("click", function () {
-
-        // Stop current timer
-        clearInterval(timerInterval);
-
-        timerInterval = null;
-
-        // Remove active
-        timerOptions.forEach(function (btn) {
-            btn.classList.remove("active");
-        });
-
-        // Add active
-        button.classList.add("active");
-
-        // Get selected times
-        focusMinutes =
-            Number(button.dataset.focus);
-
-        breakMinutes =
-            Number(button.dataset.break);
-
-        // Reset to focus time
-        isFocusTime = true;
-
-        timeLeft = focusMinutes * 60;
-
-        timerMode.textContent = "FOCUS TIME";
-
-        timerMessage.textContent =
-            "Time to focus on your studies.";
-
-        updateTimerDisplay();
-
-    });
-
-});
+            const userInput =
+                studyInput.value.trim();
 
 
-// ==============================
-// START TIMER
-// ==============================
+            // Empty input
+            if (userInput === "") {
 
-startTimerButton.addEventListener("click", function () {
+                outputContent.innerHTML = `
 
-    // Prevent multiple timers
-    if (timerInterval !== null) {
-        return;
-    }
+                    <div class="output-icon">
+                        ⚠️
+                    </div>
 
-    timerInterval = setInterval(function () {
+                    <h3>
+                        Please enter something first
+                    </h3>
 
-        timeLeft--;
+                    <p>
+                        Enter a topic, question, notes,
+                        or your answer before generating.
+                    </p>
 
-        updateTimerDisplay();
+                `;
 
-
-        // Timer finished
-        if (timeLeft <= 0) {
-
-            clearInterval(timerInterval);
-
-            timerInterval = null;
-
-
-            // Focus finished
-            if (isFocusTime) {
-
-                isFocusTime = false;
-
-                timeLeft = breakMinutes * 60;
-
-                timerMode.textContent =
-                    "BREAK TIME";
-
-                timerMessage.textContent =
-                    "Great job! Take a short break. ☕";
+                return;
 
             }
 
 
-            // Break finished
-            else {
+            // Loading
+            outputContent.innerHTML = `
 
-                isFocusTime = true;
+                <div class="output-icon">
+                    ⏳
+                </div>
 
-                timeLeft = focusMinutes * 60;
+                <h3>
+                    MEMORA is thinking...
+                </h3>
 
-                timerMode.textContent =
-                    "FOCUS TIME";
+                <p>
+                    Creating your learning result.
+                </p>
 
-                timerMessage.textContent =
-                    "Break finished. Ready to study again? 📚";
+            `;
+
+
+            try {
+
+                const response = await fetch(
+                    "/api/generate",
+                    {
+
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body: JSON.stringify({
+
+                            input: userInput,
+
+                            mode: selectedMode
+
+                        })
+
+                    }
+                );
+
+
+                const data =
+                    await response.json();
+
+
+                // API ERROR
+                if (!response.ok) {
+
+                    if (response.status === 429) {
+
+                        outputContent.innerHTML = `
+
+                            <div class="output-icon">
+                                ⏳
+                            </div>
+
+                            <h3>
+                                AI LIMIT REACHED
+                            </h3>
+
+                            <p>
+                                MEMORA has reached today's
+                                AI request limit.
+                            </p>
+
+                            <p>
+                                Please try again later.
+                            </p>
+
+                        `;
+
+                    } else {
+
+                        outputContent.innerHTML = `
+
+                            <div class="output-icon">
+                                ⚠️
+                            </div>
+
+                            <h3>
+                                MEMORA ERROR
+                            </h3>
+
+                            <p>
+                                ${
+                                    data.error ||
+                                    "Something went wrong."
+                                }
+                            </p>
+
+                        `;
+
+                    }
+
+                    return;
+
+                }
+
+
+                // SUCCESS
+                outputContent.innerHTML = `
+
+                    <div class="output-icon">
+                        🤖
+                    </div>
+
+                    <h3>
+                        MEMORA'S RESPONSE
+                    </h3>
+
+                    <div class="ai-response">
+
+                        ${renderAIText(data.result)}
+
+                    </div>
+
+                `;
+
+
+            } catch (error) {
+
+                console.error(
+                    "MEMORA ERROR:",
+                    error
+                );
+
+
+                outputContent.innerHTML = `
+
+                    <div class="output-icon">
+                        ⚠️
+                    </div>
+
+                    <h3>
+                        MEMORA needs a moment
+                    </h3>
+
+                    <p>
+                        We couldn't connect to the AI server.
+                        Please check your connection and
+                        try again.
+                    </p>
+
+                `;
 
             }
 
-            updateTimerDisplay();
         }
+    );
 
-    }, 1000);
-
-});
-
-
-// ==============================
-// PAUSE TIMER
-// ==============================
-
-pauseTimerButton.addEventListener("click", function () {
-
-    clearInterval(timerInterval);
-
-    timerInterval = null;
-
-    timerMessage.textContent =
-        "Timer paused. Continue whenever you're ready.";
-
-});
+}
 
 
-// ==============================
-// RESET TIMER
-// ==============================
+// ==========================================================
+// STUDY PLANNER
+// AI-POWERED PERSONALIZED TIME-TO-TIME PLAN
+// ==========================================================
 
-resetTimerButton.addEventListener("click", function () {
+const plannerButton =
+    document.querySelector(".planner-btn");
 
-    clearInterval(timerInterval);
+const examName =
+    document.querySelector("#examName");
 
-    timerInterval = null;
+const examDate =
+    document.querySelector("#examDate");
 
-    isFocusTime = true;
+const subjects =
+    document.querySelector("#subjects");
 
-    timeLeft = focusMinutes * 60;
+const studyHours =
+    document.querySelector("#studyHours");
 
-    timerMode.textContent =
-        "FOCUS TIME";
+const plannerResult =
+    document.querySelector(".planner-result");
 
-    timerMessage.textContent =
-        "Time to focus on your studies.";
 
-    updateTimerDisplay();
+// ==========================================================
+// PLANNER ESCAPE
+// ==========================================================
 
-});
-// ==============================
-// MEMORA - QUICK STUDY
-// ==============================
+function plannerEscape(text) {
 
-const quickTopic = document.querySelector("#quickTopic");
+    return String(text)
 
-const quickTimeButtons =
-    document.querySelectorAll(".quick-time");
+        .replace(/&/g, "&amp;")
+
+        .replace(/</g, "&lt;")
+
+        .replace(/>/g, "&gt;")
+
+        .replace(/"/g, "&quot;");
+
+}
+
+
+// ==========================================================
+// PLANNER TIME
+// ==========================================================
+
+function plannerTime(minutes) {
+
+    let hour =
+        Math.floor(minutes / 60);
+
+    let minute =
+        minutes % 60;
+
+    const period =
+        hour >= 12 ? "PM" : "AM";
+
+
+    if (hour > 12) {
+        hour -= 12;
+    }
+
+
+    if (hour === 0) {
+        hour = 12;
+    }
+
+
+    return `${hour}:${String(minute).padStart(
+        2,
+        "0"
+    )} ${period}`;
+
+}
+
+
+// ==========================================================
+// PLANNER MESSAGE
+// ==========================================================
+
+function showPlannerMessage(
+    icon,
+    title,
+    message
+) {
+
+    plannerResult.innerHTML = `
+
+        <div class="output-icon">
+            ${icon}
+        </div>
+
+        <h3>
+            ${title}
+        </h3>
+
+        <p>
+            ${message}
+        </p>
+
+    `;
+
+}
+
+
+// ==========================================================
+// STUDY PLANNER BUTTON
+// ==========================================================
+
+if (plannerButton) {
+
+    plannerButton.addEventListener(
+        "click",
+        async function () {
+
+
+            const name =
+                examName.value.trim();
+
+
+            const date =
+                examDate.value;
+
+
+            const subjectText =
+                subjects.value.trim();
+
+
+            const hours =
+                Number(studyHours.value);
+
+
+            // --------------------------------------------------
+            // VALIDATION
+            // --------------------------------------------------
+
+            if (
+                name === "" ||
+                date === "" ||
+                subjectText === "" ||
+                hours <= 0
+            ) {
+
+                showPlannerMessage(
+
+                    "⚠️",
+
+                    "Please fill all details",
+
+                    "Enter your exam name, exam date, subjects and daily study time."
+
+                );
+
+                return;
+
+            }
+
+
+            // --------------------------------------------------
+            // DATE CALCULATION
+            // --------------------------------------------------
+
+            const today =
+                new Date();
+
+            today.setHours(
+                0,
+                0,
+                0,
+                0
+            );
+
+
+            const exam =
+                new Date(date);
+
+            exam.setHours(
+                0,
+                0,
+                0,
+                0
+            );
+
+
+            const difference =
+                exam.getTime() -
+                today.getTime();
+
+
+            const daysLeft =
+                Math.ceil(
+                    difference /
+                    (1000 * 60 * 60 * 24)
+                );
+
+
+            if (daysLeft < 1) {
+
+                showPlannerMessage(
+
+                    "⚠️",
+
+                    "Choose a future exam date",
+
+                    "Your exam date should be at least one day from today."
+
+                );
+
+                return;
+
+            }
+
+
+            // --------------------------------------------------
+            // SUBJECTS
+            // --------------------------------------------------
+
+            const subjectList =
+                subjectText
+
+                    .split("\n")
+
+                    .map(
+                        subject =>
+                            subject.trim()
+                    )
+
+                    .filter(
+                        subject =>
+                            subject !== ""
+                    );
+
+
+            if (subjectList.length === 0) {
+
+                showPlannerMessage(
+
+                    "⚠️",
+
+                    "Please enter your subjects",
+
+                    "Add at least one subject."
+
+                );
+
+                return;
+
+            }
+
+
+            // --------------------------------------------------
+            // LOADING
+            // --------------------------------------------------
+
+            plannerResult.innerHTML = `
+
+                <div class="output-icon">
+                    🧠
+                </div>
+
+                <h3>
+                    Creating your personalized plan...
+                </h3>
+
+                <p>
+                    MEMORA is breaking your subjects
+                    into smaller learning topics and
+                    arranging them across your available days.
+                </p>
+
+            `;
+
+
+            try {
+
+                // --------------------------------------------------
+                // SEND PLANNER DATA TO BACKEND
+                // --------------------------------------------------
+
+                const response =
+                    await fetch(
+                        "/api/generate",
+                        {
+
+                            method: "POST",
+
+                            headers: {
+
+                                "Content-Type":
+                                    "application/json"
+
+                            },
+
+                            body: JSON.stringify({
+
+                                mode: "planner",
+
+                                examName: name,
+
+                                examDate: date,
+
+                                subjects:
+                                    subjectList.join("\n"),
+
+                                studyHours: hours
+
+                            })
+
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                // --------------------------------------------------
+                // API ERROR
+                // --------------------------------------------------
+
+                if (!response.ok) {
+
+                    throw new Error(
+
+                        data.error ||
+                        "Unable to create the study plan."
+
+                    );
+
+                }
+
+
+                // ==================================================
+                // IMPORTANT FIX
+                // ==================================================
+                //
+                // The NEW backend already returns:
+                //
+                // data.result = {
+                //     days: [...]
+                // }
+                //
+                // Therefore we DO NOT use:
+                //
+                // .replace()
+                //
+                // and we DO NOT use:
+                //
+                // JSON.parse()
+                //
+                // ==================================================
+
+                const plan =
+                    data.result;
+
+
+                if (
+                    !plan ||
+                    !plan.days ||
+                    !Array.isArray(plan.days)
+                ) {
+
+                    console.error(
+                        "Invalid planner response:",
+                        plan
+                    );
+
+                    throw new Error(
+                        "MEMORA could not create a valid study plan."
+                    );
+
+                }
+
+
+                // --------------------------------------------------
+                // CREATE TIME-TO-TIME SCHEDULE
+                // --------------------------------------------------
+
+                const totalMinutes =
+                    Math.round(
+                        hours * 60
+                    );
+
+
+                const studyBlock = 50;
+
+                const breakBlock = 10;
+
+                const recallBlock = 10;
+
+
+                // 6:00 PM
+                const startTime =
+                    18 * 60;
+
+
+                let allDaysHTML = "";
+
+
+                plan.days.forEach(
+                    (dayData, index) => {
+
+                        const dayNumber =
+                            index + 1;
+
+
+                        let currentTime =
+                            startTime;
+
+
+                        let remainingStudyTime =
+                            totalMinutes;
+
+
+                        let dayHTML = `
+
+                            <div class="planner-day">
+
+                                <h3>
+                                    📅 Day ${dayNumber}
+                                </h3>
+
+                        `;
+
+
+                        const sessions =
+                            Array.isArray(
+                                dayData.sessions
+                            )
+
+                                ? dayData.sessions
+
+                                : [];
+
+
+                        // --------------------------------------------------
+                        // STUDY SESSIONS
+                        // --------------------------------------------------
+
+                        sessions
+                            .slice(0, 2)
+                            .forEach(
+                                (
+                                    session,
+                                    sessionIndex
+                                ) => {
+
+
+                                    if (
+                                        remainingStudyTime <=
+                                        recallBlock
+                                    ) {
+
+                                        return;
+
+                                    }
+
+
+                                    const sessionLength =
+                                        Math.min(
+
+                                            studyBlock,
+
+                                            remainingStudyTime -
+                                            recallBlock
+
+                                        );
+
+
+                                    const sessionStart =
+                                        plannerTime(
+                                            currentTime
+                                        );
+
+
+                                    const sessionEndMinutes =
+                                        currentTime +
+                                        sessionLength;
+
+
+                                    const sessionEnd =
+                                        plannerTime(
+                                            sessionEndMinutes
+                                        );
+
+
+                                    const topic =
+                                        plannerEscape(
+
+                                            session.topic ||
+
+                                            "Study topic"
+
+                                        );
+
+
+                                    const activity =
+                                        plannerEscape(
+
+                                            session.activity ||
+
+                                            "Understand the concept and make short notes."
+
+                                        );
+
+
+                                    dayHTML += `
+
+                                        <div class="planner-session">
+
+                                            <strong>
+
+                                                ⏰
+                                                ${sessionStart}
+
+                                                –
+
+                                                ${sessionEnd}
+
+                                            </strong>
+
+
+                                            <p>
+
+                                                🧠 Study:
+
+                                                <strong>
+
+                                                    ${topic}
+
+                                                </strong>
+
+                                            </p>
+
+
+                                            <small>
+
+                                                ${activity}
+
+                                            </small>
+
+                                        </div>
+
+                                    `;
+
+
+                                    currentTime =
+                                        sessionEndMinutes;
+
+
+                                    remainingStudyTime -=
+                                        sessionLength;
+
+
+                                    // BREAK AFTER SESSION 1
+                                    if (
+                                        sessionIndex === 0 &&
+                                        remainingStudyTime >
+                                        recallBlock
+                                    ) {
+
+                                        const breakStart =
+                                            plannerTime(
+                                                currentTime
+                                            );
+
+
+                                        currentTime +=
+                                            breakBlock;
+
+
+                                        const breakEnd =
+                                            plannerTime(
+                                                currentTime
+                                            );
+
+
+                                        dayHTML += `
+
+                                            <div class="planner-break">
+
+                                                ☕
+                                                ${breakStart}
+
+                                                –
+
+                                                ${breakEnd}
+
+                                                <br>
+
+                                                <small>
+
+                                                    Take a short break,
+                                                    drink water and relax.
+
+                                                </small>
+
+                                            </div>
+
+                                        `;
+
+
+                                        remainingStudyTime -=
+                                            breakBlock;
+
+                                    }
+
+                                }
+                            );
+
+
+                        // --------------------------------------------------
+                        // EXTRA STUDY BLOCKS
+                        // --------------------------------------------------
+
+                        while (
+                            remainingStudyTime >
+                            recallBlock
+                        ) {
+
+                            const sessionLength =
+                                Math.min(
+
+                                    studyBlock,
+
+                                    remainingStudyTime -
+                                    recallBlock
+
+                                );
+
+
+                            const sessionStart =
+                                plannerTime(
+                                    currentTime
+                                );
+
+
+                            const sessionEndMinutes =
+                                currentTime +
+                                sessionLength;
+
+
+                            const sessionEnd =
+                                plannerTime(
+                                    sessionEndMinutes
+                                );
+
+
+                            const fallbackTopic =
+                                plannerEscape(
+
+                                    subjectList[
+                                        index %
+                                        subjectList.length
+                                    ]
+
+                                );
+
+
+                            dayHTML += `
+
+                                <div class="planner-session">
+
+                                    <strong>
+
+                                        ⏰
+                                        ${sessionStart}
+
+                                        –
+
+                                        ${sessionEnd}
+
+                                    </strong>
+
+
+                                    <p>
+
+                                        🧠 Study:
+
+                                        <strong>
+
+                                            ${fallbackTopic}
+
+                                        </strong>
+
+                                    </p>
+
+
+                                    <small>
+
+                                        Practice questions,
+                                        examples and revision.
+
+                                    </small>
+
+                                </div>
+
+                            `;
+
+
+                            currentTime =
+                                sessionEndMinutes;
+
+
+                            remainingStudyTime -=
+                                sessionLength;
+
+
+                            if (
+                                remainingStudyTime >
+                                recallBlock
+                            ) {
+
+                                const breakStart =
+                                    plannerTime(
+                                        currentTime
+                                    );
+
+
+                                currentTime +=
+                                    breakBlock;
+
+
+                                const breakEnd =
+                                    plannerTime(
+                                        currentTime
+                                    );
+
+
+                                dayHTML += `
+
+                                    <div class="planner-break">
+
+                                        ☕
+                                        ${breakStart}
+
+                                        –
+
+                                        ${breakEnd}
+
+                                        <br>
+
+                                        <small>
+
+                                            Take a short break,
+                                            drink water and relax.
+
+                                        </small>
+
+                                    </div>
+
+                                `;
+
+
+                                remainingStudyTime -=
+                                    breakBlock;
+
+                            }
+
+                        }
+
+
+                        // --------------------------------------------------
+                        // FINAL RECALL
+                        // --------------------------------------------------
+
+                        const recallStart =
+                            plannerTime(
+                                currentTime
+                            );
+
+
+                        currentTime +=
+                            recallBlock;
+
+
+                        const recallEnd =
+                            plannerTime(
+                                currentTime
+                            );
+
+
+                        const recallTask =
+                            plannerEscape(
+
+                                dayData.recall ||
+
+                                "Close your notes and recall the main ideas without looking."
+
+                            );
+
+
+                        dayHTML += `
+
+                            <div class="planner-session">
+
+                                <strong>
+
+                                    🔁
+                                    ${recallStart}
+
+                                    –
+
+                                    ${recallEnd}
+
+                                </strong>
+
+
+                                <p>
+
+                                    🧠 Final Recall
+
+                                </p>
+
+
+                                <small>
+
+                                    ${recallTask}
+
+                                </small>
+
+                            </div>
+
+
+                            </div>
+
+                        `;
+
+
+                        allDaysHTML +=
+                            dayHTML;
+
+                    }
+                );
+
+
+                // --------------------------------------------------
+                // FINAL RESULT
+                // --------------------------------------------------
+
+                plannerResult.innerHTML = `
+
+                    <div class="output-icon">
+
+                        📚
+
+                    </div>
+
+
+                    <h3>
+
+                        ${plannerEscape(name)}
+
+                    </h3>
+
+
+                    <p>
+
+                        You have
+
+                        <strong>
+
+                            ${daysLeft} days
+
+                        </strong>
+
+                        remaining.
+
+                    </p>
+
+
+                    <p>
+
+                        Daily study time:
+
+                        <strong>
+
+                            ${hours} hour(s)
+
+                        </strong>
+
+                    </p>
+
+
+                    <hr>
+
+
+                    <h3>
+
+                        📅 Your AI-Powered Study Plan
+
+                    </h3>
+
+
+                    <p>
+
+                        MEMORA has divided your subjects
+                        into smaller learning topics and
+                        arranged them into time-to-time
+                        sessions.
+
+                    </p>
+
+
+                    ${allDaysHTML}
+
+
+                    <hr>
+
+
+                    <p>
+
+                        💡
+                        <strong>MEMORA Tip:</strong>
+
+                        Follow the daily topics,
+                        take your breaks and use
+                        active recall instead of only
+                        rereading your notes.
+
+                    </p>
+
+                `;
+
+
+            } catch (error) {
+
+                console.error(
+                    "MEMORA PLANNER ERROR:",
+                    error
+                );
+
+
+                plannerResult.innerHTML = `
+
+                    <div class="output-icon">
+
+                        ⚠️
+
+                    </div>
+
+
+                    <h3>
+
+                        Couldn't create the study plan
+
+                    </h3>
+
+
+                    <p>
+
+                        ${plannerEscape(
+
+                            error.message ||
+
+                            "Something went wrong. Please try again."
+
+                        )}
+
+                    </p>
+
+                `;
+
+            }
+
+        }
+    );
+
+}
+// ==========================================================
+// MEMORA - COMPLETE SCRIPT
+// PART 2
+// ==========================================================
+
+
+// ==========================================================
+// POMODORO FOCUS MODE
+// ==========================================================
+
+let pomodoroInterval = null;
+
+let pomodoroSeconds = 25 * 60;
+
+let pomodoroRunning = false;
+
+const pomodoroDisplay =
+    document.querySelector("#pomodoroTimer") ||
+    document.querySelector(".pomodoro-timer");
+
+const pomodoroStart =
+    document.querySelector("#pomodoroStart") ||
+    document.querySelector(".pomodoro-start");
+
+const pomodoroReset =
+    document.querySelector("#pomodoroReset") ||
+    document.querySelector(".pomodoro-reset");
+
+
+function updatePomodoroDisplay() {
+
+    if (!pomodoroDisplay) {
+        return;
+    }
+
+    const minutes =
+        Math.floor(
+            pomodoroSeconds / 60
+        );
+
+    const seconds =
+        pomodoroSeconds % 60;
+
+
+    pomodoroDisplay.textContent =
+
+        `${String(minutes).padStart(2, "0")}:${String(
+            seconds
+        ).padStart(2, "0")}`;
+
+}
+
+
+function startPomodoro() {
+
+    if (pomodoroRunning) {
+        return;
+    }
+
+
+    pomodoroRunning = true;
+
+
+    if (pomodoroStart) {
+
+        pomodoroStart.textContent =
+            "⏸ Pause";
+
+    }
+
+
+    pomodoroInterval =
+        setInterval(
+            function () {
+
+                if (pomodoroSeconds > 0) {
+
+                    pomodoroSeconds--;
+
+                    updatePomodoroDisplay();
+
+                } else {
+
+                    clearInterval(
+                        pomodoroInterval
+                    );
+
+                    pomodoroInterval = null;
+
+                    pomodoroRunning = false;
+
+
+                    if (pomodoroStart) {
+
+                        pomodoroStart.textContent =
+                            "▶ Start";
+
+                    }
+
+
+                    alert(
+                        "🎉 Focus session complete! Take a short break."
+                    );
+
+                }
+
+            },
+            1000
+        );
+
+}
+
+
+function pausePomodoro() {
+
+    if (!pomodoroRunning) {
+        return;
+    }
+
+
+    clearInterval(
+        pomodoroInterval
+    );
+
+    pomodoroInterval = null;
+
+    pomodoroRunning = false;
+
+
+    if (pomodoroStart) {
+
+        pomodoroStart.textContent =
+            "▶ Start";
+
+    }
+
+}
+
+
+function resetPomodoro() {
+
+    clearInterval(
+        pomodoroInterval
+    );
+
+    pomodoroInterval = null;
+
+    pomodoroRunning = false;
+
+    pomodoroSeconds =
+        25 * 60;
+
+
+    updatePomodoroDisplay();
+
+
+    if (pomodoroStart) {
+
+        pomodoroStart.textContent =
+            "▶ Start";
+
+    }
+
+}
+
+
+if (pomodoroStart) {
+
+    pomodoroStart.addEventListener(
+        "click",
+        function () {
+
+            if (pomodoroRunning) {
+
+                pausePomodoro();
+
+            } else {
+
+                startPomodoro();
+
+            }
+
+        }
+    );
+
+}
+
+
+if (pomodoroReset) {
+
+    pomodoroReset.addEventListener(
+        "click",
+        resetPomodoro
+    );
+
+}
+
+
+updatePomodoroDisplay();
+
+// ==========================================================
+// QUICK STUDY
+// Actually explains the entered topic
+// ==========================================================
 
 const quickStudyButton =
     document.querySelector(".quick-study-btn");
 
+const quickTopic =
+    document.querySelector("#quickTopic");
+
 const quickResult =
     document.querySelector(".quick-result");
 
-let selectedQuickTime = 5;
+const quickTimeButtons =
+    document.querySelectorAll(".quick-time");
+
+let selectedQuickMinutes = 5;
 
 
-// ==============================
-// SELECT STUDY TIME
-// ==============================
+// ==========================================================
+// QUICK STUDY TIME BUTTONS
+// ==========================================================
 
 quickTimeButtons.forEach(function (button) {
 
     button.addEventListener("click", function () {
 
-        // Remove active from all
         quickTimeButtons.forEach(function (btn) {
+
             btn.classList.remove("active");
+
         });
 
-        // Add active to selected button
         button.classList.add("active");
 
-        // Store selected time
-        selectedQuickTime =
+        selectedQuickMinutes =
             Number(button.dataset.minutes);
-
-        console.log(
-            "Quick Study Time:",
-            selectedQuickTime,
-            "minutes"
-        );
 
     });
 
 });
 
 
-// ==============================
+// ==========================================================
 // START QUICK STUDY
-// ==============================
+// ==========================================================
 
-quickStudyButton.addEventListener("click", function () {
+if (quickStudyButton) {
 
-    const topic = quickTopic.value.trim();
+    quickStudyButton.addEventListener(
+        "click",
+        async function () {
 
-
-    // ==============================
-    // EMPTY INPUT CHECK
-    // ==============================
-
-    if (topic === "") {
-
-        quickResult.innerHTML = `
-            <div class="output-icon">⚠️</div>
-
-            <h3>Enter a topic first</h3>
-
-            <p>
-                Tell MEMORA what you want to study
-                before starting your quick session.
-            </p>
-        `;
-
-        return;
-    }
+            const topic =
+                quickTopic
+                    ? quickTopic.value.trim()
+                    : "";
 
 
-    // ==============================
-    // CREATE QUICK SESSION
-    // ==============================
+            // Empty topic validation
+            if (!topic) {
 
-    quickResult.innerHTML = `
+                quickResult.innerHTML = `
 
-        <div class="output-icon">⚡</div>
+                    <div class="output-icon">
+                        ⚠️
+                    </div>
 
-        <h3>${selectedQuickTime}-Minute Study Session</h3>
+                    <h3>
+                        Enter a topic first
+                    </h3>
 
-        <p>
-            Let's study:
-            <strong>${topic}</strong>
-        </p>
-
-        <hr>
-
-        <div class="ai-response">
-
-            <h3>🧠 1. Learn</h3>
-
-            <p>
-                Spend the first part of your session
-                understanding the basic idea of
-                <strong>${topic}</strong>.
-            </p>
-
-
-            <h3>💡 2. Understand</h3>
-
-            <p>
-                Think about one simple example
-                related to the topic.
-            </p>
-
-
-            <h3>✍️ 3. Practice</h3>
-
-            <p>
-                Try explaining the topic in your
-                own words or solve one small problem.
-            </p>
-
-
-            <h3>🧠 4. Recall</h3>
-
-            <p>
-                Close your notes and remember
-                the three most important points.
-            </p>
-
-
-            <hr>
-
-            <p>
-                ⏱️ You have
-                <strong>${selectedQuickTime} minutes</strong>.
-            </p>
-
-            <p>
-                🍅 Tip: Start the Pomodoro timer above
-                and stay focused until your session ends.
-            </p>
-
-        </div>
-    `;
-
-});
-// ==========================================
-// TEACH IT BACK
-// ==========================================
-
-const teachTopic = document.querySelector("#teachTopic");
-const teachAnswer = document.querySelector("#teachAnswer");
-const teachBackButton = document.querySelector(".teach-back-btn");
-const teachResult = document.querySelector(".teach-result");
-
-teachBackButton.addEventListener("click", async function () {
-
-    const topic = teachTopic.value.trim();
-    const answer = teachAnswer.value.trim();
-
-    // Check empty topic
-    if (topic === "") {
-        teachResult.innerHTML = `
-            <div class="output-icon">⚠️</div>
-            <h3>Enter a topic first</h3>
-            <p>Please tell MEMORA what topic you are explaining.</p>
-        `;
-        return;
-    }
-
-    // Check empty answer
-    if (answer === "") {
-        teachResult.innerHTML = `
-            <div class="output-icon">⚠️</div>
-            <h3>Explain the topic first</h3>
-            <p>Write your explanation in your own words and then ask MEMORA to check it.</p>
-        `;
-        return;
-    }
-
-    // Show loading
-    teachResult.innerHTML = `
-        <div class="output-icon">🧠</div>
-        <h3>MEMORA is checking your understanding...</h3>
-        <p>Please wait.</p>
-    `;
-
-    try {
-
-        // Send topic + answer to Flask
-        const response = await fetch(
-            "/api/generate",
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type": "application/json"
-                },
-
-                body: JSON.stringify({
-                    input: `
-Topic: ${topic}
-
-Student's explanation:
-${answer}
-                    `,
-                    mode: "teach"
-                })
-            }
-        );
-
-        const data = await response.json();
-
-        // API error
-        if (!response.ok) {
-
-            if (response.status === 429) {
-
-                teachResult.innerHTML = `
-                    <div class="output-icon">⏳</div>
-                    <h3>AI LIMIT REACHED</h3>
                     <p>
-                        MEMORA has reached today's AI request limit.
+                        Tell MEMORA what you want
+                        to understand.
                     </p>
-                    <p>
-                        Please try again later when the AI limit resets.
-                    </p>
+
                 `;
 
-            } else {
+                return;
 
-                teachResult.innerHTML = `
-                    <div class="output-icon">⚠️</div>
-                    <h3>MEMORA ERROR</h3>
-                    <p>
-                        ${data.error || "Something went wrong."}
-                    </p>
-                `;
             }
 
-            return;
-        }
 
-        // Show AI result
-        teachResult.innerHTML = `
-            <div class="ai-response">
-                ${marked.parse(data.result)}
-            </div>
-        `;
+            // Loading message
+            quickResult.innerHTML = `
 
-    } catch (error) {
+                <div class="output-icon">
+                    🧠
+                </div>
 
-        console.error(error);
+                <h3>
+                    Explaining ${plannerEscape(topic)}...
+                </h3>
 
-        teachResult.innerHTML = `
-            <div class="output-icon">⚠️</div>
-            <h3>Connection Error</h3>
-            <p>
-                MEMORA could not connect to the AI server.
-                Please make sure the Flask server is running.
-            </p>
-        `;
-    }
+                <p>
+                    MEMORA is preparing a
+                    ${selectedQuickMinutes}-minute
+                    explanation.
+                </p>
 
-});
-// ==========================================
-// UPLOAD & STUDY 📎📚
-// ==========================================
+            `;
 
-const studyFile = document.querySelector("#studyFile");
-const selectedFile = document.querySelector("#selectedFile");
 
-studyFile.addEventListener("change", function () {
+            try {
 
-    const file = studyFile.files[0];
+                // ==================================================
+                // AI PROMPT
+                // ==================================================
 
-    if (!file) {
-        selectedFile.innerHTML = `
-            <span>📄</span>
-            <span>No file selected yet</span>
-        `;
-        return;
-    }
+                const prompt = `
 
-    selectedFile.innerHTML = `
-    <div class="file-info">
-        <span class="file-icon">📚</span>
+You are MEMORA, a friendly AI learning assistant.
 
-        <div>
-            <strong>${file.name}</strong>
-            <small>Ready to study</small>
-        </div>
-    </div>
+The student wants to learn:
+
+${topic}
+
+They have ${selectedQuickMinutes} minutes.
+
+IMPORTANT:
+
+Actually TEACH the topic.
+
+Do NOT create a generic timetable.
+
+Use this structure:
+
+1. What is the topic?
+Explain it simply.
+
+2. Core concept
+Explain the most important idea.
+
+3. Important points
+Give the most important things the student
+should remember.
+
+4. Simple example
+Give one easy example.
+
+5. Quick practice
+Give one small question or problem.
+
+6. Memory trick
+Give a simple way to remember the topic.
+
+7. Final recap
+Give 3 to 5 short revision points.
+
+Adjust the amount of detail according to the
+available ${selectedQuickMinutes} minutes.
+
+Use simple student-friendly language.
+
+Do not use LaTeX.
+
+Do not use dollar signs for mathematical notation.
+
+Do not create a study timetable.
+
+Actually explain and teach the topic.
+
 `;
-document.querySelector("#documentActions").style.display = "block";
 
-    // IMAGE
-    if (file.type.startsWith("image/")) {
 
-        const imageURL = URL.createObjectURL(file);
+                // ==================================================
+                // SEND REQUEST TO FLASK
+                // ==================================================
 
-        selectedFile.innerHTML += `
-            <div class="image-preview">
-                <img src="${imageURL}" alt="Selected study image">
-            </div>
+                const response =
+                    await fetch(
+                        "/api/generate",
+                        {
 
-            <button class="study-file-btn" id="studyFileButton">
-                ✦ Study This Image
-            </button>
-        `;
-    }
+                            method: "POST",
 
-    // PDF
-    else if (file.type === "application/pdf") {
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
 
-        selectedFile.innerHTML += `
-            <div class="file-message">
-                <p>📄 PDF selected successfully!</p>
+                            body: JSON.stringify({
 
-                <button class="study-file-btn" id="studyPdfButton">
-                    ✦ Study This PDF
-                </button>
-            </div>
-        `;
-    }
+                                input: prompt,
 
-    // POWERPOINT
-    else if (
-        file.type === "application/vnd.ms-powerpoint" ||
-        file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-    ) {
+                                mode: "quick-study"
 
-        selectedFile.innerHTML += `
-            <div class="file-message">
-                <p>📊 Presentation selected successfully!</p>
+                            })
 
-                <button class="study-file-btn" id="studyPptButton">
-                    ✦ Study This Presentation
-                </button>
-            </div>
-        `;
-    }
+                        }
+                    );
 
-    // TEXT FILE
-    else if (file.type === "text/plain") {
 
-        selectedFile.innerHTML += `
-            <div class="file-message">
-                <p>📝 Text file selected successfully!</p>
+                // ==================================================
+                // READ RESPONSE
+                // ==================================================
 
-                <button class="study-file-btn" id="studyTxtButton">
-                    ✦ Study This Text
-                </button>
-            </div>
-        `;
-    }
+                const data =
+                    await response.json();
 
-});
-// ==========================================
-// STUDY THIS IMAGE 🖼️🧠
-// ==========================================
 
-document.addEventListener("click", async function (event) {
+                if (!response.ok) {
 
-    if (event.target.id !== "studyFileButton") {
-        return;
-    }
+                    throw new Error(
 
-    const file = studyFile.files[0];
+                        data.error ||
+                        "Unable to create your quick study session."
 
-    if (!file) {
-        return;
-    }
+                    );
 
-    const button = event.target;
+                }
 
-    button.textContent = "🧠 MEMORA is studying...";
-    button.disabled = true;
 
-    const formData = new FormData();
+                // ==================================================
+                // SHOW AI RESULT
+                // ==================================================
 
-    formData.append("image", file);
+                quickResult.innerHTML = `
 
-    try {
-
-        const response = await fetch(
-            "/api/study-image",
-            {
-                method: "POST",
-                body: formData
-            }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-
-            if (response.status === 429) {
-
-                selectedFile.innerHTML += `
-                    <div class="ai-response">
-                        <h3>⏳ AI LIMIT REACHED</h3>
-                        <p>
-                            MEMORA has reached today's AI request limit.
-                            Please try again later.
-                        </p>
+                    <div class="output-icon">
+                        ⚡
                     </div>
+
+                    <h3>
+                        Quick Study:
+                        ${plannerEscape(topic)}
+                    </h3>
+
+                    <p>
+                        <strong>
+                            ${selectedQuickMinutes}-minute
+                            learning session
+                        </strong>
+                    </p>
+
+                    <div class="ai-response">
+
+                        ${renderAIText(data.result)}
+
+                    </div>
+
                 `;
 
-            } else {
 
-                selectedFile.innerHTML += `
-                    <div class="ai-response">
-                        <h3>⚠️ MEMORA ERROR</h3>
-                        <p>
-                            ${data.error || "Something went wrong."}
-                        </p>
+            } catch (error) {
+
+                // ==================================================
+                // ERROR HANDLING
+                // ==================================================
+
+                console.error(
+                    "QUICK STUDY ERROR:",
+                    error
+                );
+
+
+                quickResult.innerHTML = `
+
+                    <div class="output-icon">
+                        ⚠️
                     </div>
+
+                    <h3>
+                        Couldn't create your study session
+                    </h3>
+
+                    <p>
+                        ${plannerEscape(
+                            error.message ||
+                            "Please try again."
+                        )}
+                    </p>
+
                 `;
+
             }
 
-            button.textContent = "✦ Study This Image";
-            button.disabled = false;
-
-            return;
         }
+    );
 
-        // Show AI result
-        selectedFile.innerHTML += `
-            <div class="ai-response image-ai-result">
-                ${marked.parse(data.result)}
-            </div>
-        `;
+}
 
-        button.textContent = "✨ Studied by MEMORA";
-        button.disabled = true;
 
-    } catch (error) {
+// ==========================================================
+// END QUICK STUDY
+// ==========================================================
+// ==========================================================
+// TEACH IT BACK
+// ==========================================================
 
-        console.error(error);
+const teachButton =
+    document.querySelector(".teach-back-btn");
 
-        selectedFile.innerHTML += `
-            <div class="ai-response">
-                <h3>⚠️ Connection Error</h3>
-                <p>
-                    MEMORA could not connect to the AI server.
-                </p>
-            </div>
-        `;
+const teachInput =
+    document.querySelector("#teachAnswer");
 
-        button.textContent = "✦ Study This Image";
-        button.disabled = false;
-    }
+const teachResult =
+    document.querySelector(".teach-result");
 
-});
-// ==========================================
-// STUDY THIS PDF 📄🧠
-// ==========================================
 
-document.addEventListener("click", async function (event) {
+if (teachButton) {
 
-    if (event.target.id !== "studyPdfButton") {
-        return;
-    }
+    teachButton.addEventListener(
+        "click",
+        async function () {
 
-    const file = studyFile.files[0];
+            const answer =
+                teachInput
+                    ? teachInput.value.trim()
+                    : "";
 
-    if (!file) {
-        return;
-    }
 
-    const button = event.target;
+            if (!answer) {
 
-    button.textContent = "📖 MEMORA is reading...";
-    button.disabled = true;
+                if (teachResult) {
 
-    const formData = new FormData();
+                    teachResult.innerHTML = `
 
-    formData.append("file", file);
+                        <div class="output-icon">
+                            ⚠️
+                        </div>
 
-    try {
+                        <h3>
+                            Explain something first
+                        </h3>
 
-        const response = await fetch(
-            "/api/study-pdf",
-            {
-                method: "POST",
-                body: formData
+                        <p>
+                            Write what you remember
+                            and MEMORA will check it.
+                        </p>
+
+                    `;
+
+                }
+
+                return;
+
             }
-        );
 
-        const data = await response.json();
 
-        if (!response.ok) {
+            if (teachResult) {
 
-            selectedFile.innerHTML += `
-                <div class="ai-response">
-                    <h3>⚠️ MEMORA ERROR</h3>
+                teachResult.innerHTML = `
+
+                    <div class="output-icon">
+                        🗣️
+                    </div>
+
+                    <h3>
+                        Checking your explanation...
+                    </h3>
+
                     <p>
-                        ${data.error || "Could not read the PDF."}
+                        MEMORA is looking for what
+                        you understood correctly and
+                        what you can improve.
                     </p>
-                </div>
-            `;
 
-            button.textContent = "✦ Study This PDF";
-            button.disabled = false;
+                `;
 
-            return;
+            }
+
+
+            try {
+
+                const prompt = `
+
+You are MEMORA, a supportive learning assistant.
+
+The student is trying to teach a concept back to you.
+
+Student explanation:
+
+${answer}
+
+Analyze it and provide:
+
+1. What the student explained correctly
+2. What is missing
+3. What needs correction
+4. A simple improved explanation
+5. One short question for active recall
+
+Be encouraging and educational.
+
+Do not use LaTeX or dollar signs.
+
+                `;
+
+
+                const response =
+                    await fetch(
+                        "/api/generate",
+                        {
+
+                            method: "POST",
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+
+                            body: JSON.stringify({
+
+                                input: prompt,
+
+                                mode: "teach-back"
+
+                            })
+
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+
+                        data.error ||
+                        "Unable to check your explanation."
+
+                    );
+
+                }
+
+
+                if (teachResult) {
+
+                    teachResult.innerHTML = `
+
+                        <div class="output-icon">
+                            🗣️
+                        </div>
+
+                        <h3>
+                            Your Teach-Back Review
+                        </h3>
+
+                        <div class="ai-response">
+
+                            ${renderAIText(data.result)}
+
+                        </div>
+
+                    `;
+
+                }
+
+
+            } catch (error) {
+
+                console.error(
+                    "TEACH BACK ERROR:",
+                    error
+                );
+
+
+                if (teachResult) {
+
+                    teachResult.innerHTML = `
+
+                        <div class="output-icon">
+                            ⚠️
+                        </div>
+
+                        <h3>
+                            Something went wrong
+                        </h3>
+
+                        <p>
+                            ${plannerEscape(
+                                error.message ||
+                                "Please try again."
+                            )}
+                        </p>
+
+                    `;
+
+                }
+
+            }
+
         }
+    );
 
-        selectedFile.innerHTML += `
-            <div class="ai-response image-ai-result">
-                <h3>📚 PDF Text Extracted Successfully!</h3>
-                <p>
-                    MEMORA successfully read the text from your PDF.
-                </p>
+}
 
-                <details>
-                    <summary>View extracted text</summary>
-                    <p>${data.result}</p>
-                </details>
-            </div>
-        `;
 
-        button.textContent = "✅ PDF Read Successfully";
-        button.disabled = true;
+// ==========================================================
+// UPLOAD & STUDY
+// ==========================================================
 
-    } catch (error) {
+let uploadedStudyText = "";
 
-        console.error(error);
+let uploadedFileName = "";
 
-        selectedFile.innerHTML += `
-            <div class="ai-response">
-                <h3>⚠️ Connection Error</h3>
-                <p>
-                    MEMORA could not connect to the PDF server.
-                </p>
-            </div>
-        `;
 
-        button.textContent = "✦ Study This PDF";
-        button.disabled = false;
-    }
+const studyFileInput =
+    document.querySelector("#studyFile");
 
-});
-// ==========================================
-// STUDY POWERPOINT 📊🧠
-// ==========================================
+const uploadStudyButton =
+    document.querySelector(".upload-study-btn");
 
-document.addEventListener("click", async function (event) {
+const uploadResult =
+    document.querySelector(".upload-result");
 
-    if (event.target.id !== "studyPptButton") {
-        return;
-    }
 
-    const file = studyFile.files[0];
+// ==========================================================
+// FILE TYPE VALIDATION
+// ==========================================================
+
+function isAllowedStudyFile(file) {
 
     if (!file) {
-        return;
+        return false;
     }
 
-    const button = event.target;
 
-    button.textContent = "📖 MEMORA is reading...";
-    button.disabled = true;
+    const allowedTypes = [
 
-    const formData = new FormData();
+        "application/pdf",
 
-    formData.append("file", file);
+        "text/plain",
 
-    try {
+        "application/vnd.ms-powerpoint",
 
-        const response = await fetch(
-            "/api/study-ppt",
-            {
-                method: "POST",
-                body: formData
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+
+        "image/png",
+
+        "image/jpeg",
+
+        "image/jpg",
+
+        "image/webp"
+
+    ];
+
+
+    return allowedTypes.includes(
+        file.type
+    );
+
+}
+
+
+// ==========================================================
+// FILE UPLOAD
+// ==========================================================
+
+if (uploadStudyButton) {
+
+    uploadStudyButton.addEventListener(
+        "click",
+        async function () {
+
+            const file =
+                studyFileInput
+                    ? studyFileInput.files[0]
+                    : null;
+
+
+            if (!file) {
+
+                if (uploadResult) {
+
+                    uploadResult.innerHTML = `
+
+                        <div class="output-icon">
+                            ⚠️
+                        </div>
+
+                        <h3>
+                            Select a file first
+                        </h3>
+
+                        <p>
+                            Upload a PDF, PPT, PPTX,
+                            TXT or image.
+                        </p>
+
+                    `;
+
+                }
+
+                return;
+
             }
-        );
 
-        const data = await response.json();
 
-        if (!response.ok) {
+            if (!isAllowedStudyFile(file)) {
 
-            selectedFile.innerHTML += `
-                <div class="ai-response">
-                    <h3>⚠️ MEMORA ERROR</h3>
+                if (uploadResult) {
+
+                    uploadResult.innerHTML = `
+
+                        <div class="output-icon">
+                            ⚠️
+                        </div>
+
+                        <h3>
+                            Unsupported file
+                        </h3>
+
+                        <p>
+                            Please upload PDF, PPT,
+                            PPTX, TXT or an image.
+                        </p>
+
+                    `;
+
+                }
+
+                return;
+
+            }
+
+
+            uploadedFileName =
+                file.name;
+
+
+            if (uploadResult) {
+
+                uploadResult.innerHTML = `
+
+                    <div class="output-icon">
+                        ⏳
+                    </div>
+
+                    <h3>
+                        Reading ${plannerEscape(file.name)}...
+                    </h3>
+
                     <p>
-                        ${data.error || "Could not read the presentation."}
+                        MEMORA is extracting the
+                        useful study content.
                     </p>
-                </div>
-            `;
 
-            button.textContent = "✦ Study This Presentation";
-            button.disabled = false;
+                `;
 
-            return;
-        }
-
-        selectedFile.innerHTML += `
-            <div class="ai-response">
-                <h3>📊 Presentation Text Extracted Successfully!</h3>
-
-                <p>
-                    MEMORA successfully read the text from your presentation.
-                </p>
-
-                <details>
-                    <summary>View extracted slide text</summary>
-                    <p>${data.result}</p>
-                </details>
-            </div>
-        `;
-
-        button.textContent = "✅ Presentation Read Successfully";
-        button.disabled = true;
-
-    } catch (error) {
-
-        console.error(error);
-
-        selectedFile.innerHTML += `
-            <div class="ai-response">
-                <h3>⚠️ Connection Error</h3>
-
-                <p>
-                    MEMORA could not connect to the presentation server.
-                </p>
-            </div>
-        `;
-
-        button.textContent = "✦ Study This Presentation";
-        button.disabled = false;
-    }
-    uploadedStudyText = data.result;
-
-});
-// ==========================================
-// STUDY TEXT FILE 📝🧠
-// ==========================================
-
-document.addEventListener("click", async function (event) {
-
-    if (event.target.id !== "studyTxtButton") {
-        return;
-    }
-
-    const file = studyFile.files[0];
-
-    if (!file) {
-        return;
-    }
-
-    const button = event.target;
-
-    button.textContent = "📖 MEMORA is reading...";
-    button.disabled = true;
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-
-        const response = await fetch(
-            "/api/study-txt",
-            {
-                method: "POST",
-                body: formData
             }
+
+
+            try {
+
+                const formData =
+                    new FormData();
+
+
+                formData.append(
+                    "file",
+                    file
+                );
+
+
+                let endpoint = "";
+
+
+                if (
+                    file.type ===
+                    "application/pdf"
+                ) {
+
+                    endpoint =
+                        "/api/study-pdf";
+
+                }
+
+                else if (
+
+                    file.type ===
+                    "text/plain"
+
+                ) {
+
+                    endpoint =
+                        "/api/study-txt";
+
+                }
+
+                else if (
+
+                    file.type ===
+                    "application/vnd.ms-powerpoint"
+
+                    ||
+
+                    file.type ===
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+                ) {
+
+                    endpoint =
+                        "/api/study-ppt";
+
+                }
+
+                else if (
+
+                    file.type.startsWith(
+                        "image/"
+                    )
+
+                ) {
+
+                    endpoint =
+                        "/api/study-image";
+
+                }
+
+
+                const response =
+                    await fetch(
+                        endpoint,
+                        {
+
+                            method: "POST",
+
+                            body: formData
+
+                        }
+                    );
+
+
+                const data =
+                    await response.json();
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+
+                        data.error ||
+                        "Unable to read the file."
+
+                    );
+
+                }
+
+
+                uploadedStudyText =
+                    data.result || "";
+
+
+                // --------------------------------------------------
+                // IMAGE PREVIEW
+                // --------------------------------------------------
+
+                let imagePreview = "";
+
+
+                if (
+                    file.type.startsWith(
+                        "image/"
+                    )
+                ) {
+
+                    const imageURL =
+                        URL.createObjectURL(
+                            file
+                        );
+
+
+                    imagePreview = `
+
+                        <div class="study-image-preview">
+
+                            <img
+                                src="${imageURL}"
+                                alt="Uploaded study material"
+                            >
+
+                        </div>
+
+                    `;
+
+                }
+
+
+                if (uploadResult) {
+
+                    uploadResult.innerHTML = `
+
+                        <div class="output-icon">
+                            📚
+                        </div>
+
+                        <h3>
+                            ${plannerEscape(file.name)}
+                            is ready!
+                        </h3>
+
+                        ${imagePreview}
+
+
+                        <div class="uploaded-study-text">
+
+                            ${renderAIText(
+                                uploadedStudyText
+                            )}
+
+                        </div>
+
+
+                        <div class="document-actions">
+
+                            <button
+                                class="document-ai-btn"
+                                data-action="summarize"
+                            >
+                                ✨ Summarize
+                            </button>
+
+
+                            <button
+                                class="document-ai-btn"
+                                data-action="explain"
+                            >
+                                🧠 Explain Simply
+                            </button>
+
+
+                            <button
+                                class="document-ai-btn"
+                                data-action="important"
+                            >
+                                ⭐ Important Points
+                            </button>
+
+
+                            <button
+                                class="document-ai-btn"
+                                data-action="quiz"
+                            >
+                                ❓ Generate Quiz
+                            </button>
+
+                        </div>
+
+
+                        <div
+                            class="document-ai-result"
+                        ></div>
+
+                    `;
+
+
+                    attachDocumentButtons();
+
+                }
+
+
+            } catch (error) {
+
+                console.error(
+                    "UPLOAD ERROR:",
+                    error
+                );
+
+
+                if (uploadResult) {
+
+                    uploadResult.innerHTML = `
+
+                        <div class="output-icon">
+                            ⚠️
+                        </div>
+
+                        <h3>
+                            Couldn't read the file
+                        </h3>
+
+                        <p>
+                            ${plannerEscape(
+                                error.message ||
+                                "Please try again."
+                            )}
+                        </p>
+
+                    `;
+
+                }
+
+            }
+
+        }
+    );
+
+}
+
+
+// ==========================================================
+// DOCUMENT AI ACTIONS
+// ==========================================================
+
+function attachDocumentButtons() {
+
+    const buttons =
+        document.querySelectorAll(
+            ".document-ai-btn"
         );
 
-        const data = await response.json();
-        uploadedStudyText = data.result;
-        
 
-        if (!response.ok) {
+    buttons.forEach(
+        function (button) {
 
-            selectedFile.innerHTML += `
-                <div class="ai-response">
-                    <h3>⚠️ MEMORA ERROR</h3>
-                    <p>${data.error || "Could not read the text file."}</p>
-                </div>
-            `;
+            button.addEventListener(
+                "click",
+                async function () {
 
-            button.textContent = "✦ Study This Text";
-            button.disabled = false;
-            return;
+                    if (!uploadedStudyText) {
+
+                        return;
+
+                    }
+
+
+                    const action =
+                        button.dataset.action;
+
+
+                    const resultBox =
+                        document.querySelector(
+                            ".document-ai-result"
+                        );
+
+
+                    let instruction = "";
+
+
+                    if (
+                        action ===
+                        "summarize"
+                    ) {
+
+                        instruction = `
+
+Summarize the uploaded study material.
+
+Give:
+- Main idea
+- Important concepts
+- Key facts
+- Short exam-focused summary
+
+Keep it clear and easy to revise.
+
+                        `;
+
+                    }
+
+
+                    else if (
+                        action ===
+                        "explain"
+                    ) {
+
+                        instruction = `
+
+Explain the uploaded study material
+in very simple student-friendly language.
+
+Break difficult concepts into small parts.
+
+Use simple examples where useful.
+
+                        `;
+
+                    }
+
+
+                    else if (
+                        action ===
+                        "important"
+                    ) {
+
+                        instruction = `
+
+Extract the most important points
+from the uploaded study material.
+
+Focus on:
+- Definitions
+- Important concepts
+- Formulas
+- Steps
+- Exam-relevant facts
+
+                        `;
+
+                    }
+
+
+                    else if (
+                        action ===
+                        "quiz"
+                    ) {
+
+                        instruction = `
+
+Create a short quiz from the uploaded
+study material.
+
+Include:
+- Multiple choice questions
+- Concept-based questions
+- Answers after the questions
+
+                        `;
+
+                    }
+
+
+                    resultBox.innerHTML = `
+
+                        <div class="output-icon">
+                            ⏳
+                        </div>
+
+                        <h3>
+                            MEMORA is working...
+                        </h3>
+
+                        <p>
+                            Creating your
+                            ${action} result.
+                        </p>
+
+                    `;
+
+
+                    try {
+
+                        const prompt = `
+
+You are MEMORA, an AI-powered learning assistant.
+
+The following content was uploaded by a student:
+
+-------------------------
+
+${uploadedStudyText}
+
+-------------------------
+
+${instruction}
+
+Use ONLY the uploaded material
+as the main source.
+
+Do not invent unrelated information.
+
+Do not use LaTeX or dollar signs.
+
+Make the response readable and useful
+for a student.
+
+                        `;
+
+
+                        const response =
+                            await fetch(
+                                "/api/generate",
+                                {
+
+                                    method: "POST",
+
+                                    headers: {
+
+                                        "Content-Type":
+                                            "application/json"
+
+                                    },
+
+                                    body: JSON.stringify({
+
+                                        input: prompt,
+
+                                        mode:
+                                            "document-" +
+                                            action
+
+                                    })
+
+                                }
+                            );
+
+
+                        const data =
+                            await response.json();
+
+
+                        if (!response.ok) {
+
+                            throw new Error(
+
+                                data.error ||
+                                "AI processing failed."
+
+                            );
+
+                        }
+
+
+                        resultBox.innerHTML = `
+
+                            <div class="output-icon">
+                                🤖
+                            </div>
+
+                            <h3>
+                                MEMORA's ${action}
+                            </h3>
+
+                            <div class="ai-response">
+
+                                ${renderAIText(
+                                    data.result
+                                )}
+
+                            </div>
+
+                        `;
+
+
+                    } catch (error) {
+
+                        console.error(
+                            "DOCUMENT AI ERROR:",
+                            error
+                        );
+
+
+                        resultBox.innerHTML = `
+
+                            <div class="output-icon">
+                                ⚠️
+                            </div>
+
+                            <h3>
+                                Couldn't process the document
+                            </h3>
+
+                            <p>
+                                ${plannerEscape(
+                                    error.message ||
+                                    "Please try again."
+                                )}
+                            </p>
+
+                        `;
+
+                    }
+
+                }
+            );
+
         }
-        uploadedStudyText = data.result;
+    );
 
-        selectedFile.innerHTML += `
-            <div class="ai-response">
-                <h3>📝 Text File Read Successfully!</h3>
+}
 
-                <p>
-                    MEMORA successfully read your text file.
-                </p>
 
-                <details>
-                    <summary>View extracted text</summary>
-                    <p>${data.result}</p>
-                </details>
-            </div>
-        `;
+// ==========================================================
+// FILE INPUT PREVIEW
+// ==========================================================
 
-        button.textContent = "✅ Text Read Successfully";
-        button.disabled = true;
+if (studyFileInput) {
 
-    } catch (error) {
+    studyFileInput.addEventListener(
+        "change",
+        function () {
 
-        console.error(error);
+            const file =
+                studyFileInput.files[0];
 
-        selectedFile.innerHTML += `
-            <div class="ai-response">
-                <h3>⚠️ Connection Error</h3>
 
-                <p>
-                    MEMORA could not connect to the text file server.
-                </p>
-            </div>
-        `;
-
-        button.textContent = "✦ Study This Text";
-        button.disabled = false;
-    }
-
-});
-// ==========================================
-// DOCUMENT AI — SUMMARIZE ✨
-// ==========================================
-
-document.addEventListener("click", async function (event) {
-
-    if (!event.target.classList.contains("document-action-btn")) {
-        return;
-    }
-
-    const action = event.target.textContent.trim();
-
-    // Only handle Summarize for now
-    if (!action.includes("Summarize")) {
-        return;
-    }
-
-    if (!uploadedStudyText.trim()) {
-
-        alert("Please upload and read a study file first.");
-
-        return;
-    }
-
-    const button = event.target;
-
-    button.textContent = "🧠 MEMORA is thinking...";
-    button.disabled = true;
-
-    try {
-
-        const response = await fetch(
-            "/api/generate",
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type": "application/json"
-                },
-
-                body: JSON.stringify({
-
-                    input: uploadedStudyText,
-
-                    mode: "summarize"
-
-                })
+            if (!file) {
+                return;
             }
-        );
 
-        const data = await response.json();
 
-        if (!response.ok) {
+            const fileName =
+                document.querySelector(
+                    ".selected-file-name"
+                );
 
-            selectedFile.innerHTML += `
-                <div class="ai-response">
-                    <h3>⚠️ MEMORA ERROR</h3>
-                    <p>${data.error || "Something went wrong."}</p>
-                </div>
-            `;
 
-            button.textContent = "✨ Summarize";
-            button.disabled = false;
+            if (fileName) {
 
-            return;
-        }
+                fileName.textContent =
+                    file.name;
 
-        selectedFile.innerHTML += `
-            <div class="ai-response">
-                <h3>✨ MEMORA Summary</h3>
-
-                ${marked.parse(data.result)}
-            </div>
-        `;
-
-        button.textContent = "✅ Summarized";
-
-    } catch (error) {
-
-        console.error(error);
-
-        selectedFile.innerHTML += `
-            <div class="ai-response">
-                <h3>⚠️ Connection Error</h3>
-
-                <p>
-                    MEMORA could not connect to the AI server.
-                </p>
-            </div>
-        `;
-
-        button.textContent = "✨ Summarize";
-        button.disabled = false;
-    }
-
-});
-// ==========================================
-// DOCUMENT AI — EXPLAIN SIMPLY 🧠
-// ==========================================
-
-document.addEventListener("click", async function (event) {
-
-    if (!event.target.classList.contains("document-action-btn")) {
-        return;
-    }
-
-    const action = event.target.textContent.trim();
-
-    // Only handle Explain Simply
-    if (!action.includes("Explain Simply")) {
-        return;
-    }
-
-    if (!uploadedStudyText.trim()) {
-
-        alert("Please upload and read a study file first.");
-
-        return;
-    }
-
-    const button = event.target;
-
-    button.textContent = "🧠 MEMORA is thinking...";
-    button.disabled = true;
-
-    try {
-
-        const response = await fetch(
-            "/api/generate",
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type": "application/json"
-                },
-
-                body: JSON.stringify({
-
-                    input: uploadedStudyText,
-
-                    mode: "simple"
-
-                })
             }
-        );
 
-        const data = await response.json();
-
-        if (!response.ok) {
-
-            selectedFile.innerHTML += `
-                <div class="ai-response">
-                    <h3>⚠️ MEMORA ERROR</h3>
-                    <p>${data.error || "Something went wrong."}</p>
-                </div>
-            `;
-
-            button.textContent = "🧠 Explain Simply";
-            button.disabled = false;
-
-            return;
         }
+    );
 
-        selectedFile.innerHTML += `
-            <div class="ai-response">
-                <h3>🧠 MEMORA's Simple Explanation</h3>
+}
 
-                ${marked.parse(data.result)}
-            </div>
-        `;
 
-        button.textContent = "✅ Explained";
+// ==========================================================
+// MOBILE MENU
+// ==========================================================
 
-    } catch (error) {
+const menuButton =
+    document.querySelector(
+        ".menu-toggle"
+    );
 
-        console.error(error);
+const navigation =
+    document.querySelector(
+        ".nav-links"
+    );
 
-        selectedFile.innerHTML += `
-            <div class="ai-response">
-                <h3>⚠️ Connection Error</h3>
 
-                <p>
-                    MEMORA could not connect to the AI server.
-                </p>
-            </div>
-        `;
+if (
+    menuButton &&
+    navigation
+) {
 
-        button.textContent = "🧠 Explain Simply";
-        button.disabled = false;
-    }
+    menuButton.addEventListener(
+        "click",
+        function () {
 
-});
-// ==========================================
-// DOCUMENT AI — IMPORTANT POINTS ⭐
-// ==========================================
+            navigation.classList.toggle(
+                "active"
+            );
 
-document.addEventListener("click", async function (event) {
-
-    if (!event.target.classList.contains("document-action-btn")) {
-        return;
-    }
-
-    const action = event.target.textContent.trim();
-
-    // Only handle Important Points
-    if (!action.includes("Important Points")) {
-        return;
-    }
-
-    if (!uploadedStudyText.trim()) {
-
-        alert("Please upload and read a study file first.");
-
-        return;
-    }
-
-    const button = event.target;
-
-    button.textContent = "🧠 MEMORA is thinking...";
-    button.disabled = true;
-
-    try {
-
-        const response = await fetch(
-            "/api/generate",
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type": "application/json"
-                },
-
-                body: JSON.stringify({
-
-                    input: uploadedStudyText,
-
-                    mode: "important"
-
-                })
-            }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-
-            selectedFile.innerHTML += `
-                <div class="ai-response">
-                    <h3>⚠️ MEMORA ERROR</h3>
-                    <p>${data.error || "Something went wrong."}</p>
-                </div>
-            `;
-
-            button.textContent = "⭐ Important Points";
-            button.disabled = false;
-
-            return;
         }
+    );
 
-        selectedFile.innerHTML += `
-            <div class="ai-response">
-                <h3>⭐ Important Points</h3>
+}
 
-                ${marked.parse(data.result)}
-            </div>
-        `;
 
-        button.textContent = "✅ Important Points Ready";
+// ==========================================================
+// SMOOTH SCROLL FOR NAVIGATION
+// ==========================================================
 
-    } catch (error) {
+document
+    .querySelectorAll(
+        'a[href^="#"]'
+    )
+    .forEach(
+        function (link) {
 
-        console.error(error);
+            link.addEventListener(
+                "click",
+                function (event) {
 
-        selectedFile.innerHTML += `
-            <div class="ai-response">
-                <h3>⚠️ Connection Error</h3>
+                    const targetID =
+                        this.getAttribute(
+                            "href"
+                        );
 
-                <p>
-                    MEMORA could not connect to the AI server.
-                </p>
-            </div>
-        `;
 
-        button.textContent = "⭐ Important Points";
-        button.disabled = false;
-    }
+                    if (
+                        !targetID ||
+                        targetID === "#"
+                    ) {
 
-});
-// ==========================================
-// DOCUMENT AI — GENERATE QUIZ ❓
-// ==========================================
+                        return;
 
-document.addEventListener("click", async function (event) {
+                    }
 
-    if (!event.target.classList.contains("document-action-btn")) {
-        return;
-    }
 
-    const action = event.target.textContent.trim();
+                    const target =
+                        document.querySelector(
+                            targetID
+                        );
 
-    // Only handle Generate Quiz
-    if (!action.includes("Generate Quiz")) {
-        return;
-    }
 
-    if (!uploadedStudyText.trim()) {
+                    if (target) {
 
-        alert("Please upload and read a study file first.");
+                        event.preventDefault();
 
-        return;
-    }
 
-    const button = event.target;
+                        target.scrollIntoView({
 
-    button.textContent = "🧠 MEMORA is creating quiz...";
-    button.disabled = true;
+                            behavior:
+                                "smooth",
 
-    try {
+                            block:
+                                "start"
 
-        const response = await fetch(
-            "/api/generate",
-            {
-                method: "POST",
+                        });
 
-                headers: {
-                    "Content-Type": "application/json"
-                },
+                    }
 
-                body: JSON.stringify({
+                }
+            );
 
-                    input: uploadedStudyText,
-
-                    mode: "quiz"
-
-                })
-            }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok) {
-
-            selectedFile.innerHTML += `
-                <div class="ai-response">
-                    <h3>⚠️ MEMORA ERROR</h3>
-                    <p>${data.error || "Something went wrong."}</p>
-                </div>
-            `;
-
-            button.textContent = "❓ Generate Quiz";
-            button.disabled = false;
-
-            return;
         }
+    );
 
-        selectedFile.innerHTML += `
-            <div class="ai-response">
-                <h3>❓ MEMORA Quiz</h3>
 
-                ${marked.parse(data.result)}
-            </div>
-        `;
+// ==========================================================
+// PAGE LOAD
+// ==========================================================
 
-        button.textContent = "✅ Quiz Generated";
+console.log(
+    "🧠 MEMORA loaded successfully."
+);
 
-    } catch (error) {
+console.log(
+    "Learn it. Understand it. Remember it."
+);
 
-        console.error(error);
 
-        selectedFile.innerHTML += `
-            <div class="ai-response">
-                <h3>⚠️ Connection Error</h3>
+// ==========================================================
+// END OF MEMORA SCRIPT
+// ==========================================================
 
-                <p>
-                    MEMORA could not connect to the AI server.
-                </p>
-            </div>
-        `;
-
-        button.textContent = "❓ Generate Quiz";
-        button.disabled = false;
-    }
-
-});
 

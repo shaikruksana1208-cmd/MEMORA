@@ -387,6 +387,65 @@ Sorting"
     </section>
 
 
+    // ==========================================================
+// QUICK STUDY
+// ==========================================================
+
+const quickStudyButton =
+    document.querySelector(".quick-study-btn");
+
+const quickTopic =
+    document.querySelector("#quickTopic");
+
+const quickResult =
+    document.querySelector(".quick-result");
+
+const quickTimeButtons =
+    document.querySelectorAll(".quick-time");
+
+
+// Default study time
+let selectedQuickMinutes = 5;
+
+
+// ==========================================================
+// QUICK STUDY TIME BUTTONS
+// ==========================================================
+
+quickTimeButtons.forEach(function (button) {
+
+    button.addEventListener(
+        "click",
+        function () {
+
+            // Remove active from all buttons
+            quickTimeButtons.forEach(
+                function (btn) {
+
+                    btn.classList.remove(
+                        "active"
+                    );
+
+                }
+            );
+
+
+            // Add active to selected button
+            button.classList.add(
+                "active"
+            );
+
+
+            // Store selected minutes
+            selectedQuickMinutes =
+                Number(
+                    button.dataset.minutes
+                );
+
+        }
+    );
+
+});
     <!-- QUICK STUDY -->
     <section class="quick-study" id="quick-study">
 
@@ -396,9 +455,7 @@ Sorting"
             Short on time? Let MEMORA create a focused mini study session.
         </p>
 
-
         <div class="quick-study-box">
-
 
             <div class="quick-study-input">
 
@@ -489,7 +546,6 @@ Sorting"
         </div>
 
     </section>
-
 
     <!-- TEACH IT BACK -->
     <section class="teach-back" id="teach-back">
