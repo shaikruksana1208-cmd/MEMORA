@@ -181,6 +181,76 @@
     </section>
 
 
+    <!-- MEMORA DOCUMENT TUTOR -->
+    <section class="document-tutor" id="document-tutor">
+
+        <h2>📚 MEMORA Document Tutor</h2>
+
+        <p class="section-description">
+            Upload a PDF, index it, and ask MEMORA questions based only on the document you uploaded.
+        </p>
+
+        <div class="document-tutor-box">
+
+            <div class="document-tutor-panel">
+
+                <label for="documentTutorFile">
+                    Upload your study PDF
+                </label>
+
+                <input type="file" id="documentTutorFile" accept="application/pdf">
+
+                <div id="documentTutorFileName" class="selected-file-name">
+                    No file selected
+                </div>
+
+                <button class="document-index-btn" id="documentIndexBtn">
+                    📚 Index Document
+                </button>
+
+                <div id="documentTutorStatus" class="document-status">
+                    No document indexed yet.
+                </div>
+
+                <div id="documentTutorStats" class="document-stats">
+                    0 pages • 0 chunks
+                </div>
+
+            </div>
+
+            <div class="document-tutor-panel">
+
+                <label for="documentQuestionInput">
+                    Ask MEMORA about the uploaded document
+                </label>
+
+                <textarea
+                    id="documentQuestionInput"
+                    placeholder="Example: What is normalization?"
+                ></textarea>
+
+                <button class="document-question-btn" id="documentQuestionBtn">
+                    ✦ Ask MEMORA
+                </button>
+
+                <div id="documentTutorAnswer" class="document-answer-box">
+                    <div class="output-icon">📖</div>
+                    <h3>Your answer will appear here</h3>
+                    <p>Index a PDF and ask a question to get a grounded, source-based answer.</p>
+                </div>
+
+                <div id="documentTutorSources" class="document-sources">
+                    <h4>Sources</h4>
+                    <p>No sources yet.</p>
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
     <!-- STUDY PLANNER -->
     <section class="study-planner" id="planner">
 

@@ -4,4 +4,6 @@ python-dotenv
 google-genai
 pypdf
 python-pptx
+faiss-cpu
+numpy
 gunicorn

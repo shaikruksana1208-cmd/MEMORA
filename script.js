@@ -2758,6 +2758,264 @@ for a student.
 
 
 // ==========================================================
+// DOCUMENT TUTOR
+// ==========================================================
+
+const documentTutorFile =
+    document.querySelector("#documentTutorFile");
+
+const documentTutorFileName =
+    document.querySelector("#documentTutorFileName");
+
+const documentIndexBtn =
+    document.querySelector("#documentIndexBtn");
+
+const documentTutorStatus =
+    document.querySelector("#documentTutorStatus");
+
+const documentTutorStats =
+    document.querySelector("#documentTutorStats");
+
+const documentQuestionInput =
+    document.querySelector("#documentQuestionInput");
+
+const documentQuestionBtn =
+    document.querySelector("#documentQuestionBtn");
+
+const documentTutorAnswer =
+    document.querySelector("#documentTutorAnswer");
+
+const documentTutorSources =
+    document.querySelector("#documentTutorSources");
+
+let indexedDocumentState = {
+    filename: null,
+    pages: 0,
+    chunks: 0,
+    indexed: false
+};
+
+function setDocumentTutorState(text, type = "info") {
+    if (!documentTutorStatus) {
+        return;
+    }
+
+    documentTutorStatus.textContent = text;
+    documentTutorStatus.className = "document-status";
+
+    if (type === "success") {
+        documentTutorStatus.style.color = "#2d7a57";
+    } else if (type === "error") {
+        documentTutorStatus.style.color = "#b14b5d";
+    } else {
+        documentTutorStatus.style.color = "#6a5c77";
+    }
+}
+
+function renderDocumentSources(sources) {
+    if (!documentTutorSources) {
+        return;
+    }
+
+    if (!Array.isArray(sources) || sources.length === 0) {
+        documentTutorSources.innerHTML = `
+            <h4>Sources</h4>
+            <p>No sources yet.</p>
+        `;
+        return;
+    }
+
+    const listItems = sources
+        .map(source => {
+            const filename = plannerEscape(source.filename || "Document");
+            const page = Number(source.page || 0);
+            return `<li>${filename} — Page ${page}</li>`;
+        })
+        .join("");
+
+    documentTutorSources.innerHTML = `
+        <h4>Sources</h4>
+        <ul>${listItems}</ul>
+    `;
+}
+
+if (documentTutorFile) {
+    documentTutorFile.addEventListener("change", function () {
+        const file = documentTutorFile.files[0];
+
+        if (!file) {
+            if (documentTutorFileName) {
+                documentTutorFileName.textContent = "No file selected";
+            }
+            return;
+        }
+
+        if (file.type !== "application/pdf" && !file.name.toLowerCase().endswith(".pdf")) {
+            setDocumentTutorState("Please upload a PDF file.", "error");
+            if (documentTutorFileName) {
+                documentTutorFileName.textContent = "Unsupported file type";
+            }
+            return;
+        }
+
+        if (documentTutorFileName) {
+            documentTutorFileName.textContent = file.name;
+        }
+
+        setDocumentTutorState("PDF selected. Ready to index.", "info");
+    });
+}
+
+if (documentIndexBtn) {
+    documentIndexBtn.addEventListener("click", async function () {
+        const file = documentTutorFile ? documentTutorFile.files[0] : null;
+
+        if (!file) {
+            setDocumentTutorState("Please upload a PDF first.", "error");
+            if (documentTutorFileName) {
+                documentTutorFileName.textContent = "No file selected";
+            }
+            return;
+        }
+
+        if (file.type !== "application/pdf" && !file.name.toLowerCase().endswith(".pdf")) {
+            setDocumentTutorState("Please upload a PDF file.", "error");
+            return;
+        }
+
+        setDocumentTutorState("Indexing document...", "info");
+
+        if (documentTutorStats) {
+            documentTutorStats.textContent = "0 pages • 0 chunks";
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const response = await fetch("/api/index-document", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "The document could not be indexed.");
+            }
+
+            indexedDocumentState = {
+                filename: data.filename || file.name,
+                pages: Number(data.pages || 0),
+                chunks: Number(data.chunks || 0),
+                indexed: true
+            };
+
+            if (documentTutorStats) {
+                documentTutorStats.textContent = `${indexedDocumentState.pages} pages • ${indexedDocumentState.chunks} chunks`;
+            }
+
+            setDocumentTutorState("Document indexed successfully.", "success");
+
+            if (documentTutorAnswer) {
+                documentTutorAnswer.innerHTML = `
+                    <div class="output-icon">✅</div>
+                    <h3>Document ready</h3>
+                    <p>${plannerEscape(indexedDocumentState.filename)} is indexed and ready for questions.</p>
+                `;
+            }
+
+        } catch (error) {
+            console.error("DOCUMENT INDEX ERROR:", error);
+            setDocumentTutorState(error.message || "We couldn't index this document right now.", "error");
+        }
+    });
+}
+
+if (documentQuestionBtn) {
+    documentQuestionBtn.addEventListener("click", async function () {
+        const question = documentQuestionInput ? documentQuestionInput.value.trim() : "";
+
+        if (!question) {
+            if (documentTutorAnswer) {
+                documentTutorAnswer.innerHTML = `
+                    <div class="output-icon">⚠️</div>
+                    <h3>Please enter a question</h3>
+                    <p>Ask a question about the uploaded PDF before generating an answer.</p>
+                `;
+            }
+            return;
+        }
+
+        if (!indexedDocumentState.indexed) {
+            if (documentTutorAnswer) {
+                documentTutorAnswer.innerHTML = `
+                    <div class="output-icon">⚠️</div>
+                    <h3>Please index a document first</h3>
+                    <p>Upload and index a PDF before asking MEMORA a question.</p>
+                `;
+            }
+            renderDocumentSources([]);
+            return;
+        }
+
+        if (documentTutorAnswer) {
+            documentTutorAnswer.innerHTML = `
+                <div class="output-icon">⏳</div>
+                <h3>Finding the best matches...</h3>
+                <p>MEMORA is retrieving the most relevant parts of your document and answering from that context.</p>
+            `;
+        }
+
+        try {
+            const response = await fetch("/api/document-question", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    question: question
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "We couldn't answer that question.");
+            }
+
+            const answerText = data.answer || "No answer was returned.";
+
+            if (documentTutorAnswer) {
+                documentTutorAnswer.innerHTML = `
+                    <div class="output-icon">🧠</div>
+                    <h3>MEMORA's answer</h3>
+                    <div class="ai-response">
+                        ${renderAIText(answerText)}
+                    </div>
+                `;
+            }
+
+            renderDocumentSources(data.sources || []);
+
+        } catch (error) {
+            console.error("DOCUMENT QUESTION ERROR:", error);
+
+            if (documentTutorAnswer) {
+                documentTutorAnswer.innerHTML = `
+                    <div class="output-icon">⚠️</div>
+                    <h3>Couldn't answer that question</h3>
+                    <p>${plannerEscape(error.message || "Please try again.")}</p>
+                `;
+            }
+
+            renderDocumentSources([]);
+        }
+    });
+}
+
+
+// ==========================================================
 // MOBILE MENU
 // ==========================================================
 

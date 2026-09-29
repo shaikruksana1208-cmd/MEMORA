@@ -252,6 +252,133 @@ section h2 {
 
 
 /* ==========================================
+   DOCUMENT TUTOR 📚
+   ========================================== */
+
+.document-tutor-box {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.document-tutor-panel {
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid #ebd9f0;
+    border-radius: 22px;
+    padding: 28px;
+    box-shadow: 0 12px 30px rgba(148, 117, 164, 0.08);
+}
+
+.document-tutor-panel label {
+    display: block;
+    margin-bottom: 12px;
+    font-weight: 700;
+    color: #5e4767;
+}
+
+.document-tutor-panel input[type="file"],
+.document-tutor-panel textarea {
+    width: 100%;
+    margin-bottom: 18px;
+}
+
+.document-tutor-panel input[type="file"] {
+    padding: 12px 14px;
+    border: 1px solid #e5d4eb;
+    border-radius: 14px;
+    background: #fff;
+    color: #5e4767;
+}
+
+.document-tutor-panel textarea {
+    min-height: 130px;
+    resize: vertical;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid #e5d4eb;
+    font-family: inherit;
+    font-size: 15px;
+    background: #fff;
+}
+
+.selected-file-name,
+.document-status,
+.document-stats {
+    color: #6a5c77;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.document-status {
+    font-weight: 700;
+    color: #6a5c77;
+}
+
+.document-stats {
+    color: #8b7797;
+}
+
+.document-index-btn,
+.document-question-btn {
+    width: 100%;
+    border: none;
+    border-radius: 16px;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, #dca8d2, #b9d4f8);
+    color: #4f3d59;
+    font-weight: 800;
+    cursor: pointer;
+    margin-bottom: 16px;
+    transition: transform 0.2s ease;
+}
+
+.document-index-btn:hover,
+.document-question-btn:hover {
+    transform: translateY(-1px);
+}
+
+.document-answer-box,
+.document-sources {
+    border-radius: 18px;
+    border: 1px solid #ebd9f0;
+    background: #fff;
+    padding: 18px;
+    margin-top: 18px;
+}
+
+.document-answer-box h3,
+.document-sources h4 {
+    margin: 10px 0 10px;
+    color: #5a4465;
+}
+
+.document-answer-box p,
+.document-sources p {
+    color: #6d5d78;
+}
+
+.document-sources ul {
+    list-style: none;
+    padding-left: 0;
+    display: grid;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.document-sources li {
+    color: #5e4767;
+    font-weight: 600;
+}
+
+@media (max-width: 800px) {
+    .document-tutor-box {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ==========================================
    AI STUDY SPACE 🧠
    ========================================== */
 

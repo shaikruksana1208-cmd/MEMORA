@@ -2,12 +2,19 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
 from google import genai
+from werkzeug.utils import secure_filename
 import os
 import time
 import json
 
 from pypdf import PdfReader
 from pptx import Presentation
+
+from rag.chunker import chunk_pages
+from rag.document_processor import DocumentProcessingError, extract_pdf_pages
+from rag.embeddings import EmbeddingError, embed_texts
+from rag.generator import build_grounded_prompt
+from rag.vector_store import VectorStoreError, build_faiss_index, retrieve_top_chunks
 
 
 # ==========================================================
@@ -25,50 +32,84 @@ api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
     print("WARNING: GEMINI_API_KEY is not set.")
 
-client = genai.Client(api_key=api_key)
+client = genai.Client(api_key=api_key) if api_key else None
+
+DOCUMENT_INDEX = {
+    "filename": None,
+    "pages": 0,
+    "chunks": 0,
+    "index": None,
+    "metadata": []
+}
+
+GENERATION_MODELS = [
+    "gemini-3.5-flash-lite",
+    "gemini-3.8-flash"
+]
 
 
 # ==========================================================
 # HELPER - GEMINI AI
 # ==========================================================
 
+def ensure_client_available():
+    if client is None:
+        raise RuntimeError(
+            "MEMORA AI is unavailable because GEMINI_API_KEY is not configured."
+        )
+
+    return client
+
+
 def generate_ai(prompt):
 
-    for attempt in range(3):
+    ensure_client_available()
 
-        try:
+    for model_name in GENERATION_MODELS:
 
-            response = client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=prompt
-            )
+        for attempt in range(3):
 
-            return response.text
+            try:
 
-        except Exception as error:
-
-            error_text = str(error)
-
-            if (
-                "429" in error_text
-                or "RESOURCE_EXHAUSTED" in error_text
-            ):
-
-                print("ERROR: Gemini quota exceeded.")
-
-                raise Exception(
-                    "MEMORA AI limit has been reached. Please try again later."
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt
                 )
 
-            if "503" in error_text and attempt < 2:
+                return response.text
 
-                print("Gemini is busy. Retrying...")
+            except Exception as error:
 
-                time.sleep(3)
+                error_text = str(error)
 
-                continue
+                if (
+                    "429" in error_text
+                    or "RESOURCE_EXHAUSTED" in error_text
+                ):
 
-            raise error
+                    print("ERROR: Gemini quota exceeded.")
+
+                    raise Exception(
+                        "MEMORA AI limit has been reached. Please try again later."
+                    )
+
+                if "503" in error_text and attempt < 2:
+
+                    print(f"Gemini is busy on {model_name}. Retrying...")
+
+                    time.sleep(3)
+
+                    continue
+
+                if "503" in error_text:
+                    print(f"Model {model_name} is unavailable right now. Trying next model.")
+                    break
+
+                raise error
+
+    raise Exception(
+        "We couldn't generate an answer right now. Please try again later."
+    )
 
 
 # ==========================================================
@@ -923,7 +964,7 @@ def study_image():
 
         response = client.models.generate_content(
 
-            model="gemini-3.6-flash",
+            model="gemini-3.8-flash",
 
             contents=[
 
@@ -1208,6 +1249,187 @@ def study_txt():
         return jsonify({
             "error":
             "MEMORA could not read this text file."
+        }), 500
+
+
+# ==========================================================
+# MEMORA DOCUMENT TUTOR
+# ==========================================================
+
+@app.route("/api/index-document", methods=["POST"])
+def index_document():
+    try:
+        if "file" not in request.files:
+            return jsonify({
+                "error": "Please upload a PDF first."
+            }), 400
+
+        pdf_file = request.files["file"]
+
+        if pdf_file.filename == "":
+            return jsonify({
+                "error": "Please upload a PDF first."
+            }), 400
+
+        file_name = secure_filename(pdf_file.filename)
+
+        if not file_name.lower().endswith(".pdf"):
+            return jsonify({
+                "error": "Please upload a PDF file."
+            }), 400
+
+        file_bytes = pdf_file.read()
+
+        if not file_bytes:
+            return jsonify({
+                "error": "The uploaded PDF is empty."
+            }), 400
+
+        pages = extract_pdf_pages(file_bytes, file_name)
+        chunks = chunk_pages(pages, chunk_size=500, overlap=80)
+
+        if not chunks:
+            return jsonify({
+                "error": "The document does not contain extractable text."
+            }), 400
+
+        chunk_texts = [chunk["text"] for chunk in chunks]
+        embeddings = embed_texts(chunk_texts, client=client)
+
+        if not embeddings:
+            return jsonify({
+                "error": "We could not create embeddings for this document."
+            }), 500
+
+        faiss_index, metadata = build_faiss_index(chunks, embeddings)
+
+        DOCUMENT_INDEX.update({
+            "filename": file_name,
+            "pages": len(pages),
+            "chunks": len(chunks),
+            "index": faiss_index,
+            "metadata": metadata
+        })
+
+        return jsonify({
+            "success": True,
+            "filename": file_name,
+            "pages": len(pages),
+            "chunks": len(chunks)
+        })
+
+    except DocumentProcessingError as error:
+        print("DOCUMENT PROCESSING ERROR:", error)
+        return jsonify({
+            "error": str(error)
+        }), 400
+
+    except EmbeddingError as error:
+        print("DOCUMENT EMBEDDING ERROR:", error)
+        return jsonify({
+            "error": str(error)
+        }), 500
+
+    except VectorStoreError as error:
+        print("DOCUMENT VECTOR ERROR:", error)
+        return jsonify({
+            "error": str(error)
+        }), 500
+
+    except Exception as error:
+        print("DOCUMENT INDEX ERROR:", error)
+        return jsonify({
+            "error": "We couldn't index this document right now. Please try again later."
+        }), 500
+
+
+@app.route("/api/document-question", methods=["POST"])
+def document_question():
+    try:
+        data = request.get_json(silent=True) or {}
+        question = str(data.get("question", "")).strip()
+
+        if not question:
+            return jsonify({
+                "error": "Please enter a question first."
+            }), 400
+
+        if not DOCUMENT_INDEX["index"] or not DOCUMENT_INDEX["metadata"]:
+            return jsonify({
+                "error": "Please index a document before asking a question."
+            }), 400
+
+        if len(question) > 2000:
+            return jsonify({
+                "error": "Question is too long. Please ask something shorter."
+            }), 400
+
+        query_embedding = embed_texts([question], client=client)[0]
+        relevant_chunks = retrieve_top_chunks(
+            DOCUMENT_INDEX["index"],
+            DOCUMENT_INDEX["metadata"],
+            query_embedding,
+            top_k=4
+        )
+
+        if not relevant_chunks:
+            return jsonify({
+                "success": True,
+                "answer": "I could not find enough information in the uploaded document to answer that question.",
+                "sources": []
+            })
+
+        prompt = build_grounded_prompt(question, relevant_chunks)
+        answer = generate_ai(prompt)
+
+        seen_sources = set()
+        sources = []
+
+        for chunk in relevant_chunks:
+            page_key = (chunk["filename"], chunk["page_number"])
+
+            if page_key in seen_sources:
+                continue
+
+            seen_sources.add(page_key)
+            sources.append({
+                "filename": chunk["filename"],
+                "page": chunk["page_number"]
+            })
+
+        return jsonify({
+            "success": True,
+            "answer": answer,
+            "sources": sources
+        })
+
+    except EmbeddingError as error:
+        print("QUESTION EMBEDDING ERROR:", error)
+        return jsonify({
+            "error": str(error)
+        }), 500
+
+    except VectorStoreError as error:
+        print("QUESTION RETRIEVAL ERROR:", error)
+        return jsonify({
+            "error": str(error)
+        }), 500
+
+    except Exception as error:
+        error_text = str(error)
+        print("DOCUMENT QUESTION ERROR:", error)
+
+        if (
+            "503" in error_text
+            or "busy" in error_text.lower()
+            or "unavailable" in error_text.lower()
+        ):
+            return jsonify({
+                "error": "Gemini is busy right now. Please try again later."
+            }), 503
+
+        return jsonify({
+            "error": "We couldn't generate an answer right now. Please try again later."
         }), 500
 
 
