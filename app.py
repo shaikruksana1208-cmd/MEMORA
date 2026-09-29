@@ -16,6 +16,7 @@ from rag.chunker import chunk_pages
 from rag.document_processor import DocumentProcessingError, extract_document_pages
 from rag.embeddings import EmbeddingError, embed_texts
 from rag.generator import build_grounded_prompt
+from rag.groundedness import is_answer_grounded, unverified_answer_message
 from rag.query_refiner import refine_query
 from rag.reranker import rerank_chunks
 from rag.vector_store import VectorStoreError, build_faiss_index, retrieve_top_chunks
@@ -1409,6 +1410,13 @@ def document_question():
 
         prompt = build_grounded_prompt(question, relevant_chunks)
         answer = generate_ai(prompt)
+
+        try:
+            if not is_answer_grounded(answer, relevant_chunks):
+                answer = unverified_answer_message()
+        except Exception as error:
+            print("DOCUMENT GROUNDEDNESS CHECK ERROR:", error)
+            answer = unverified_answer_message()
 
         seen_sources = set()
         sources = []

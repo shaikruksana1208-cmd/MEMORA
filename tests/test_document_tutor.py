@@ -8,6 +8,7 @@ from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 from api_schemas import GenerateRequest
 from app import app
 from rag.document_processor import DocumentProcessingError, extract_document_pages
+from rag.groundedness import is_answer_grounded, unverified_answer_message
 from rag.query_refiner import refine_query
 from rag.reranker import rerank_chunks
 
@@ -130,6 +131,33 @@ class RerankerTests(unittest.TestCase):
 
         self.assertEqual(len(reranked), 2)
         self.assertCountEqual(reranked, candidates)
+
+
+class GroundednessTests(unittest.TestCase):
+    def test_supported_answer_passes(self):
+        chunks = [{"chunk_text": "Normalization organizes database tables to reduce redundancy."}]
+
+        self.assertTrue(is_answer_grounded(
+            "Normalization organizes database tables to reduce redundancy.",
+            chunks
+        ))
+
+    def test_unsupported_answer_fails(self):
+        chunks = [{"chunk_text": "Normalization organizes database tables to reduce redundancy."}]
+
+        self.assertFalse(is_answer_grounded(
+            "Normalization organizes database tables to reduce redundancy. "
+            "It was invented in 1970 by researchers in California.",
+            chunks
+        ))
+
+    def test_check_uses_only_supplied_retrieved_chunks(self):
+        retrieved_chunks = [{"chunk_text": "Normalization reduces database redundancy."}]
+
+        self.assertFalse(is_answer_grounded(
+            "Indexing improves database query performance.",
+            retrieved_chunks
+        ))
 
 
 class DocumentTutorValidationTests(unittest.TestCase):
@@ -270,6 +298,84 @@ class DocumentTutorValidationTests(unittest.TestCase):
             self.assertEqual(payload['sources'][0]['page'], 1)
             self.assertEqual(mock_embed_texts.call_args.args[0], ['normalization'])
             self.assertIn('USER QUESTION:\nWhat is normalization?', mock_generate.call_args.args[0])
+
+    @patch('app.generate_ai', return_value='Normalization reduces redundancy.')
+    @patch('app.is_answer_grounded', return_value=True)
+    @patch('app.retrieve_top_chunks', return_value=[{
+        'filename': 'DBMS_Unit1.pdf',
+        'page_number': 3,
+        'chunk_id': 'DBMS_Unit1.pdf-p3-c1',
+        'chunk_text': 'Normalization reduces redundancy.'
+    }])
+    @patch('app.embed_texts', return_value=[[0.1, 0.2, 0.3]])
+    @patch('app.refine_query', return_value='normalization')
+    def test_document_question_checks_answer_against_retrieved_chunks(self, mock_refine, mock_embed, mock_retrieve, mock_grounded, mock_generate):
+        with patch('app.DOCUMENT_INDEX', {
+            'filename': 'DBMS_Unit1.pdf',
+            'pages': 1,
+            'chunks': 1,
+            'index': object(),
+            'metadata': [{'filename': 'DBMS_Unit1.pdf', 'page_number': 3, 'chunk_text': 'Normalization reduces redundancy.', 'chunk_id': 'DBMS_Unit1.pdf-p3-c1'}]
+        }):
+            response = self.client.post('/api/document-question', json={'question': 'What is normalization?'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(mock_grounded.call_args.args[0], 'Normalization reduces redundancy.')
+        self.assertEqual(mock_grounded.call_args.args[1], mock_retrieve.return_value)
+        payload = response.get_json()
+        self.assertEqual(payload['answer'], 'Normalization reduces redundancy.')
+        self.assertEqual(payload['sources'], [{'filename': 'DBMS_Unit1.pdf', 'page': 3}])
+
+    @patch('app.generate_ai', return_value='Normalization was invented in 1970 in California.')
+    @patch('app.is_answer_grounded', return_value=False)
+    @patch('app.retrieve_top_chunks', return_value=[{
+        'filename': 'DBMS_Unit1.pdf',
+        'page_number': 3,
+        'chunk_id': 'DBMS_Unit1.pdf-p3-c1',
+        'chunk_text': 'Normalization reduces database redundancy.'
+    }])
+    @patch('app.embed_texts', return_value=[[0.1, 0.2, 0.3]])
+    @patch('app.refine_query', return_value='normalization')
+    def test_unsupported_answer_is_flagged_and_sources_preserved(self, mock_refine, mock_embed, mock_retrieve, mock_grounded, mock_generate):
+        with patch('app.DOCUMENT_INDEX', {
+            'filename': 'DBMS_Unit1.pdf',
+            'pages': 1,
+            'chunks': 1,
+            'index': object(),
+            'metadata': [{'filename': 'DBMS_Unit1.pdf', 'page_number': 3, 'chunk_text': 'Normalization reduces database redundancy.', 'chunk_id': 'DBMS_Unit1.pdf-p3-c1'}]
+        }):
+            response = self.client.post('/api/document-question', json={'question': 'What is normalization?'})
+
+        payload = response.get_json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(set(payload), {'success', 'answer', 'sources'})
+        self.assertEqual(payload['answer'], unverified_answer_message())
+        self.assertEqual(payload['sources'], [{'filename': 'DBMS_Unit1.pdf', 'page': 3}])
+
+    @patch('app.generate_ai', return_value='Normalization reduces redundancy.')
+    @patch('app.is_answer_grounded', side_effect=RuntimeError('checker failed'))
+    @patch('app.retrieve_top_chunks', return_value=[{
+        'filename': 'DBMS_Unit1.pdf',
+        'page_number': 3,
+        'chunk_id': 'DBMS_Unit1.pdf-p3-c1',
+        'chunk_text': 'Normalization reduces redundancy.'
+    }])
+    @patch('app.embed_texts', return_value=[[0.1, 0.2, 0.3]])
+    @patch('app.refine_query', return_value='normalization')
+    def test_groundedness_checker_failure_returns_cautious_answer_and_sources(self, mock_refine, mock_embed, mock_retrieve, mock_grounded, mock_generate):
+        with patch('app.DOCUMENT_INDEX', {
+            'filename': 'DBMS_Unit1.pdf',
+            'pages': 1,
+            'chunks': 1,
+            'index': object(),
+            'metadata': [{'filename': 'DBMS_Unit1.pdf', 'page_number': 3, 'chunk_text': 'Normalization reduces redundancy.', 'chunk_id': 'DBMS_Unit1.pdf-p3-c1'}]
+        }):
+            response = self.client.post('/api/document-question', json={'question': 'What is normalization?'})
+
+        payload = response.get_json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload['answer'], unverified_answer_message())
+        self.assertEqual(payload['sources'], [{'filename': 'DBMS_Unit1.pdf', 'page': 3}])
 
     @patch('app.generate_ai', return_value='Normalization reduces redundancy.')
     @patch('app.rerank_chunks', side_effect=lambda query, chunks, top_k: chunks[:top_k])
