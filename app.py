@@ -2,11 +2,13 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
 from google import genai
+from pydantic import ValidationError
 from werkzeug.utils import secure_filename
 import os
 import time
 import json
 
+from api_schemas import DocumentQuestionRequest, GenerateRequest
 from pypdf import PdfReader
 from pptx import Presentation
 
@@ -122,7 +124,19 @@ def generate():
 
     try:
 
-        data = request.get_json(silent=True) or {}
+        raw_data = request.get_json(silent=True)
+        if raw_data is None:
+            raw_data = {}
+
+        try:
+            data = GenerateRequest.model_validate(raw_data).model_dump(exclude_unset=True)
+        except ValidationError:
+            message = (
+                "Please provide a valid JSON object."
+                if not isinstance(raw_data, dict)
+                else "Invalid request fields. Please check your input."
+            )
+            return jsonify({"error": message}), 400
 
         mode = data.get(
             "mode",
@@ -1335,22 +1349,26 @@ def index_document():
 @app.route("/api/document-question", methods=["POST"])
 def document_question():
     try:
-        data = request.get_json(silent=True) or {}
-        question = str(data.get("question", "")).strip()
+        raw_data = request.get_json(silent=True)
+        if raw_data is None:
+            raw_data = {}
 
-        if not question:
-            return jsonify({
-                "error": "Please enter a question first."
-            }), 400
+        try:
+            data = DocumentQuestionRequest.model_validate(raw_data)
+        except ValidationError as error:
+            if not isinstance(raw_data, dict):
+                message = "Please provide a valid JSON object."
+            elif any(item["type"] == "string_too_long" for item in error.errors()):
+                message = "Question is too long. Please ask something shorter."
+            else:
+                message = "Please enter a question first."
+            return jsonify({"error": message}), 400
+
+        question = data.question
 
         if not DOCUMENT_INDEX["index"] or not DOCUMENT_INDEX["metadata"]:
             return jsonify({
                 "error": "Please index a document before asking a question."
-            }), 400
-
-        if len(question) > 2000:
-            return jsonify({
-                "error": "Question is too long. Please ask something shorter."
             }), 400
 
         try:

@@ -5,6 +5,7 @@ from unittest.mock import patch
 from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
+from api_schemas import GenerateRequest
 from app import app
 from rag.document_processor import DocumentProcessingError, extract_document_pages
 from rag.query_refiner import refine_query
@@ -110,6 +111,84 @@ class DocumentTutorValidationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('Please index a document before asking a question', response.get_json()['error'])
 
+    @patch('app.generate_ai', return_value='A clear explanation.')
+    def test_generate_accepts_valid_normal_payload_and_preserves_envelope(self, mock_generate):
+        response = self.client.post('/api/generate', json={
+            'input': 'database normalization',
+            'mode': 'explain',
+            'unusedFrontendField': 'ignored'
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {'result': 'A clear explanation.'})
+        mock_generate.assert_called_once()
+
+    @patch('app.generate_ai', return_value='{"days": [{"day": 1}]}')
+    def test_generate_accepts_valid_planner_payload(self, mock_generate):
+        response = self.client.post('/api/generate', json={
+            'mode': 'planner',
+            'examName': 'DBMS Final',
+            'examDate': '2026-10-20',
+            'subjects': 'Normalization',
+            'studyHours': '2'
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {'result': {'days': [{'day': 1}]}})
+        mock_generate.assert_called_once()
+
+    def test_generate_rejects_invalid_fields_with_error_envelope(self):
+        response = self.client.post('/api/generate', json={
+            'input': {'unexpected': 'object'},
+            'mode': 'explain'
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(set(response.get_json()), {'error'})
+
+    def test_generate_rejects_malformed_and_non_object_json(self):
+        malformed = self.client.post(
+            '/api/generate',
+            data='{"input":',
+            content_type='application/json'
+        )
+        non_object = self.client.post('/api/generate', json=['not', 'an', 'object'])
+
+        for response in (malformed, non_object):
+            with self.subTest(status=response.status_code):
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(set(response.get_json()), {'error'})
+
+    def test_generate_request_accepts_existing_modes(self):
+        existing_modes = (
+            'explain', 'summarize', 'important', 'quiz', 'improve',
+            'simple', 'teach', 'quick-study', 'planner'
+        )
+        for mode in existing_modes:
+            with self.subTest(mode=mode):
+                request_model = GenerateRequest.model_validate({'mode': mode})
+                self.assertEqual(request_model.mode, mode)
+
+    def test_document_question_rejects_empty_invalid_and_non_object_payloads(self):
+        requests = (
+            self.client.post('/api/document-question', json={}),
+            self.client.post('/api/document-question', json={'question': '   '}),
+            self.client.post('/api/document-question', json={'question': 42}),
+            self.client.post('/api/document-question', json=['not', 'an', 'object'])
+        )
+        for response in requests:
+            with self.subTest(status=response.status_code):
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(set(response.get_json()), {'error'})
+
+    def test_document_question_rejects_oversized_question(self):
+        response = self.client.post('/api/document-question', json={
+            'question': 'q' * 2001
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('Question is too long', response.get_json()['error'])
+
     @patch('app.generate_ai', return_value='Normalization reduces redundancy.')
     @patch('app.retrieve_top_chunks', return_value=[{
         'filename': 'DBMS_Unit1.pdf',
@@ -131,6 +210,7 @@ class DocumentTutorValidationTests(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
             payload = response.get_json()
             self.assertTrue(payload['success'])
+            self.assertEqual(set(payload), {'success', 'answer', 'sources'})
             self.assertIn('Normalization', payload['answer'])
             self.assertEqual(payload['sources'][0]['page'], 1)
             self.assertEqual(mock_embed_texts.call_args.args[0], ['normalization'])

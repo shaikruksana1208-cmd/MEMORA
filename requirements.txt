@@ -7,3 +7,4 @@ python-pptx
 faiss-cpu
 numpy
 gunicorn
+pydantic>=2,<3
