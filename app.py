@@ -14,6 +14,7 @@ from rag.chunker import chunk_pages
 from rag.document_processor import DocumentProcessingError, extract_document_pages
 from rag.embeddings import EmbeddingError, embed_texts
 from rag.generator import build_grounded_prompt
+from rag.query_refiner import refine_query
 from rag.vector_store import VectorStoreError, build_faiss_index, retrieve_top_chunks
 
 
@@ -1352,7 +1353,15 @@ def document_question():
                 "error": "Question is too long. Please ask something shorter."
             }), 400
 
-        query_embedding = embed_texts([question], client=client)[0]
+        try:
+            retrieval_query = refine_query(question, DOCUMENT_INDEX["filename"])
+            if not isinstance(retrieval_query, str) or not retrieval_query.strip():
+                retrieval_query = question
+        except Exception as error:
+            print("QUERY REFINEMENT ERROR:", error)
+            retrieval_query = question
+
+        query_embedding = embed_texts([retrieval_query], client=client)[0]
         relevant_chunks = retrieve_top_chunks(
             DOCUMENT_INDEX["index"],
             DOCUMENT_INDEX["metadata"],

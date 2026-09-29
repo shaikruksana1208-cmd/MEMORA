@@ -7,6 +7,7 @@ from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
 from app import app
 from rag.document_processor import DocumentProcessingError, extract_document_pages
+from rag.query_refiner import refine_query
 
 
 class DocumentProcessorTests(unittest.TestCase):
@@ -66,6 +67,15 @@ class DocumentProcessorTests(unittest.TestCase):
             extract_document_pages(b"content", "notes.docx")
 
 
+class QueryRefinerTests(unittest.TestCase):
+    def test_refines_conversational_question_without_answering(self):
+        refined = refine_query(
+            "Could you please explain normalization in the uploaded document?",
+            "DBMS_Unit1.pdf"
+        )
+        self.assertEqual(refined, "normalization")
+
+
 class DocumentTutorValidationTests(unittest.TestCase):
     def setUp(self):
         self.client = app.test_client()
@@ -108,7 +118,8 @@ class DocumentTutorValidationTests(unittest.TestCase):
         'chunk_text': 'Normalization reduces redundancy.'
     }])
     @patch('app.embed_texts', return_value=[[0.1, 0.2, 0.3]])
-    def test_document_question_success_path(self, mock_embed_texts, mock_retrieve, mock_generate):
+    @patch('app.refine_query', return_value='normalization')
+    def test_document_question_success_path(self, mock_refine, mock_embed_texts, mock_retrieve, mock_generate):
         with patch('app.DOCUMENT_INDEX', {
             'filename': 'DBMS_Unit1.pdf',
             'pages': 1,
@@ -122,6 +133,32 @@ class DocumentTutorValidationTests(unittest.TestCase):
             self.assertTrue(payload['success'])
             self.assertIn('Normalization', payload['answer'])
             self.assertEqual(payload['sources'][0]['page'], 1)
+            self.assertEqual(mock_embed_texts.call_args.args[0], ['normalization'])
+            self.assertIn('USER QUESTION:\nWhat is normalization?', mock_generate.call_args.args[0])
+
+    @patch('app.generate_ai', return_value='Normalization reduces redundancy.')
+    @patch('app.retrieve_top_chunks', return_value=[{
+        'filename': 'DBMS_Unit1.pdf',
+        'page_number': 1,
+        'chunk_id': 'DBMS_Unit1.pdf-p1-c1',
+        'chunk_text': 'Normalization reduces redundancy.'
+    }])
+    @patch('app.embed_texts', return_value=[[0.1, 0.2, 0.3]])
+    @patch('app.refine_query', side_effect=RuntimeError('refinement unavailable'))
+    def test_document_question_falls_back_to_original_query(self, mock_refine, mock_embed_texts, mock_retrieve, mock_generate):
+        question = 'What is normalization?'
+        with patch('app.DOCUMENT_INDEX', {
+            'filename': 'DBMS_Unit1.pdf',
+            'pages': 1,
+            'chunks': 1,
+            'index': object(),
+            'metadata': [{'filename': 'DBMS_Unit1.pdf', 'page_number': 1, 'chunk_text': 'Normalization reduces redundancy.', 'chunk_id': 'DBMS_Unit1.pdf-p1-c1'}]
+        }):
+            response = self.client.post('/api/document-question', json={'question': question})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(mock_embed_texts.call_args.args[0], [question])
+        self.assertIn(f'USER QUESTION:\n{question}', mock_generate.call_args.args[0])
 
     @patch('app.generate_ai', side_effect=Exception('503 UNAVAILABLE. This model is currently experiencing high demand.'))
     @patch('app.retrieve_top_chunks', return_value=[{
