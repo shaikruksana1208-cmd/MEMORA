@@ -187,7 +187,7 @@
         <h2>📚 MEMORA Document Tutor</h2>
 
         <p class="section-description">
-            Upload a PDF, index it, and ask MEMORA questions based only on the document you uploaded.
+            Upload a PDF, TXT, or Markdown file, index it, and ask MEMORA questions based only on the document you uploaded.
         </p>
 
         <div class="document-tutor-box">
@@ -195,10 +195,10 @@
             <div class="document-tutor-panel">
 
                 <label for="documentTutorFile">
-                    Upload your study PDF
+                    Upload a study document
                 </label>
 
-                <input type="file" id="documentTutorFile" accept="application/pdf">
+                <input type="file" id="documentTutorFile" accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown">
 
                 <div id="documentTutorFileName" class="selected-file-name">
                     No file selected
@@ -236,7 +236,7 @@
                 <div id="documentTutorAnswer" class="document-answer-box">
                     <div class="output-icon">📖</div>
                     <h3>Your answer will appear here</h3>
-                    <p>Index a PDF and ask a question to get a grounded, source-based answer.</p>
+                    <p>Index a document and ask a question to get a grounded, source-based answer.</p>
                 </div>
 
                 <div id="documentTutorSources" class="document-sources">

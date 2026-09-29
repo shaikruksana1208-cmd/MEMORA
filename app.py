@@ -11,7 +11,7 @@ from pypdf import PdfReader
 from pptx import Presentation
 
 from rag.chunker import chunk_pages
-from rag.document_processor import DocumentProcessingError, extract_pdf_pages
+from rag.document_processor import DocumentProcessingError, extract_document_pages
 from rag.embeddings import EmbeddingError, embed_texts
 from rag.generator import build_grounded_prompt
 from rag.vector_store import VectorStoreError, build_faiss_index, retrieve_top_chunks
@@ -1261,31 +1261,19 @@ def index_document():
     try:
         if "file" not in request.files:
             return jsonify({
-                "error": "Please upload a PDF first."
+                "error": "Please upload a document first."
             }), 400
 
         pdf_file = request.files["file"]
 
         if pdf_file.filename == "":
             return jsonify({
-                "error": "Please upload a PDF first."
+                "error": "Please upload a document first."
             }), 400
 
         file_name = secure_filename(pdf_file.filename)
-
-        if not file_name.lower().endswith(".pdf"):
-            return jsonify({
-                "error": "Please upload a PDF file."
-            }), 400
-
         file_bytes = pdf_file.read()
-
-        if not file_bytes:
-            return jsonify({
-                "error": "The uploaded PDF is empty."
-            }), 400
-
-        pages = extract_pdf_pages(file_bytes, file_name)
+        pages = extract_document_pages(file_bytes, file_name)
         chunks = chunk_pages(pages, chunk_size=500, overlap=80)
 
         if not chunks:

@@ -2850,8 +2850,8 @@ if (documentTutorFile) {
             return;
         }
 
-        if (file.type !== "application/pdf" && !file.name.toLowerCase().endswith(".pdf")) {
-            setDocumentTutorState("Please upload a PDF file.", "error");
+        if (!/\.(pdf|txt|md)$/i.test(file.name)) {
+            setDocumentTutorState("Please upload a PDF, TXT, or Markdown file.", "error");
             if (documentTutorFileName) {
                 documentTutorFileName.textContent = "Unsupported file type";
             }
@@ -2862,7 +2862,7 @@ if (documentTutorFile) {
             documentTutorFileName.textContent = file.name;
         }
 
-        setDocumentTutorState("PDF selected. Ready to index.", "info");
+        setDocumentTutorState("Document selected. Ready to index.", "info");
     });
 }
 
@@ -2871,15 +2871,15 @@ if (documentIndexBtn) {
         const file = documentTutorFile ? documentTutorFile.files[0] : null;
 
         if (!file) {
-            setDocumentTutorState("Please upload a PDF first.", "error");
+            setDocumentTutorState("Please upload a document first.", "error");
             if (documentTutorFileName) {
                 documentTutorFileName.textContent = "No file selected";
             }
             return;
         }
 
-        if (file.type !== "application/pdf" && !file.name.toLowerCase().endswith(".pdf")) {
-            setDocumentTutorState("Please upload a PDF file.", "error");
+        if (!/\.(pdf|txt|md)$/i.test(file.name)) {
+            setDocumentTutorState("Please upload a PDF, TXT, or Markdown file.", "error");
             return;
         }
 
@@ -2941,7 +2941,7 @@ if (documentQuestionBtn) {
                 documentTutorAnswer.innerHTML = `
                     <div class="output-icon">⚠️</div>
                     <h3>Please enter a question</h3>
-                    <p>Ask a question about the uploaded PDF before generating an answer.</p>
+                    <p>Ask a question about the uploaded document before generating an answer.</p>
                 `;
             }
             return;
@@ -2952,7 +2952,7 @@ if (documentQuestionBtn) {
                 documentTutorAnswer.innerHTML = `
                     <div class="output-icon">⚠️</div>
                     <h3>Please index a document first</h3>
-                    <p>Upload and index a PDF before asking MEMORA a question.</p>
+                    <p>Upload and index a document before asking MEMORA a question.</p>
                 `;
             }
             renderDocumentSources([]);
