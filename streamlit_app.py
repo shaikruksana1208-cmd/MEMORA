@@ -6,8 +6,10 @@ import requests
 
 
 DEFAULT_API_BASE_URL = "http://127.0.0.1:8000"
-REQUEST_TIMEOUT_SECONDS = 120
-HEALTH_TIMEOUT_SECONDS = 5
+REQUEST_TIMEOUT = (5, 120)
+HEALTH_TIMEOUT = (2, 5)
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+MAX_QUESTION_LENGTH = 2000
 SUPPORTED_EXTENSIONS = {"pdf", "txt", "md"}
 UNVERIFIED_API_ERROR = "The FastAPI server returned an unreadable response."
 
@@ -35,7 +37,7 @@ def _read_json_response(response):
     return payload
 
 
-def check_api_health(base_url, timeout=HEALTH_TIMEOUT_SECONDS):
+def check_api_health(base_url, timeout=HEALTH_TIMEOUT):
     try:
         response = requests.get(
             f"{_base_url(base_url)}/health",
@@ -50,12 +52,14 @@ def check_api_health(base_url, timeout=HEALTH_TIMEOUT_SECONDS):
     return payload
 
 
-def upload_document(base_url, filename, file_bytes, timeout=REQUEST_TIMEOUT_SECONDS):
+def upload_document(base_url, filename, file_bytes, timeout=REQUEST_TIMEOUT):
     extension = Path(filename or "").suffix.lower().lstrip(".")
     if extension not in SUPPORTED_EXTENSIONS:
         raise APIRequestError("Please choose a PDF, TXT, or Markdown file.")
     if not file_bytes:
         raise APIRequestError("The selected document is empty.")
+    if len(file_bytes) > MAX_UPLOAD_BYTES:
+        raise APIRequestError("The selected document exceeds the 25 MB upload limit.")
 
     mime_type = {
         "pdf": "application/pdf",
@@ -74,10 +78,12 @@ def upload_document(base_url, filename, file_bytes, timeout=REQUEST_TIMEOUT_SECO
         raise APIRequestError("FastAPI server is unavailable or the upload timed out.") from error
 
 
-def ask_document(base_url, question, timeout=REQUEST_TIMEOUT_SECONDS):
+def ask_document(base_url, question, timeout=REQUEST_TIMEOUT):
     question = (question or "").strip()
     if not question:
         raise APIRequestError("Enter a question before asking MEMORA.")
+    if len(question) > MAX_QUESTION_LENGTH:
+        raise APIRequestError("Keep your question to 2000 characters or fewer.")
 
     try:
         response = requests.post(
@@ -126,6 +132,7 @@ def run_app():
                     st.session_state["api_health"] = (True, health.get("service", "FastAPI"))
                 except APIRequestError as error:
                     st.session_state["api_health"] = (False, str(error))
+                st.session_state["api_health_url"] = api_base_url
 
         health_state = st.session_state.get("api_health")
         if (
@@ -150,6 +157,7 @@ def run_app():
     uploaded_file = st.file_uploader(
         "Choose a document",
         type=sorted(SUPPORTED_EXTENSIONS),
+        max_upload_size=25,
         help="PDF, TXT, and Markdown files are supported.",
     )
 

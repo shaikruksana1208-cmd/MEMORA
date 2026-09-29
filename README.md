@@ -2,7 +2,7 @@
 
 ### Learn it. Understand it. Remember it.
 
-MEMORA is an AI-powered personalized learning platform designed to help students understand difficult topics, revise faster, plan their studies, and learn from their own study materials.
+MEMORA is an AI-powered personalized learning and memory platform designed to help students understand difficult topics, revise faster, plan their studies, and learn from their own study materials.
 
 ## 🌐 Live Demo
 
@@ -77,9 +77,10 @@ Available modes include:
 Students can upload study material including:
 
 - PDF
+- TXT
+- Markdown (`.md`)
 - PPT
 - PPTX
-- TXT
 - JPG
 - JPEG
 - PNG
@@ -111,33 +112,206 @@ Examples include:
 
 ## 🛠️ Technology Stack
 
-### Frontend
+### Existing application
 
 - HTML
 - CSS
 - JavaScript
+- Flask and Flask-CORS
+- Existing Beginner and Intermediate study tools
 
-### Backend
+### Advanced document tutor
 
-- Python
-- Flask
-- Flask-CORS
+- FastAPI API in `fastapi_app.py`
+- Streamlit client in `streamlit_app.py`
+- Pydantic request schemas in `api_schemas.py`
+- LangGraph workflow in `rag/workflow.py`
+- FAISS vector retrieval
 
-### AI
+### AI and document processing
 
 - Google Gemini API
+- PyPDF for PDF text extraction
+- UTF-8 text extraction for TXT and Markdown
+- NumPy and FAISS for vector indexing and retrieval
 
-### Document Processing
+### Container
 
-- PyPDF
-- python-pptx
+- Docker with a Python 3.11 slim image
 
-### Deployment
+## Advanced Architecture
 
-- GitHub
-- Render
+The Advanced Document Tutor keeps ingestion and question answering separate. Uploaded document text becomes a FAISS index; each question is refined and used to retrieve and rerank relevant chunks before Gemini generates an answer grounded in that evidence.
 
-## 🔄 How MEMORA Works
+```text
+Upload
+   -> Extract text and retain filename/page metadata
+   -> Chunk
+   -> Embed chunks
+   -> Build FAISS index
+   -> Refine question
+   -> Embed refined query and retrieve FAISS candidates
+   -> Rerank candidates locally
+   -> Build grounded prompt from selected chunks
+   -> Generate answer with Gemini
+   -> Check answer against retrieved evidence
+   -> Assemble source filename/page citations
+   -> Return answer and sources
+```
+
+### Ingestion and retrieval
+
+- Supported Document Tutor formats are PDF, TXT, and Markdown (`.md`).
+- PDF pages are extracted with `pypdf`; TXT and Markdown are read as UTF-8 single-page documents. Empty, unreadable, unsupported, and scanned PDFs without extractable text are rejected with clear errors.
+- `rag/chunker.py` creates overlapping chunks while retaining filenames and page numbers.
+- `rag/embeddings.py` creates Gemini embeddings on the server. `rag/vector_store.py` builds a FAISS index and retrieves an initial candidate pool.
+- `rag/query_refiner.py` deterministically simplifies common conversational phrasing before query embedding. If refinement fails, the original question is used.
+- `rag/reranker.py` locally reranks FAISS candidates using normalized retrieval rank and query-token coverage; FAISS results are the initial candidates and remain the fallback order if reranking fails.
+- `rag/generator.py` builds the answer prompt from the original user question and retrieved evidence. `rag/groundedness.py` applies a deterministic evidence-overlap safeguard; this is a heuristic, not a proof of semantic entailment.
+- Answers include source filename and page information from the selected chunks.
+
+### LangGraph and schemas
+
+`rag/workflow.py` orchestrates query refinement, retrieval, reranking, prompt construction, generation, groundedness checking, and source assembly. It reuses the existing RAG modules rather than reimplementing them in API handlers.
+
+`api_schemas.py` defines Pydantic v2 request schemas. FastAPI validates document questions, reports clear HTTP errors, and preserves the `{success, answer, sources}` success response structure.
+
+## FastAPI Endpoints
+
+Run FastAPI separately from the existing Flask application. The Advanced Streamlit client uses this API.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Liveness check; preserves the existing `{status, service}` response. |
+| `GET` | `/ready` | Local readiness check; verifies that the Gemini client is configured without making a Gemini request. |
+| `POST` | `/api/index-document` | Multipart upload using the `file` field; indexes PDF, TXT, or Markdown and returns filename, page count, and chunk count. |
+| `POST` | `/api/document-question` | JSON body `{"question": "..."}`; returns `{success, answer, sources}`. |
+
+Upload requests are limited to 25 MiB. Invalid/empty files, missing indexed documents, invalid questions, embedding/retrieval failures, and provider overloads receive HTTP errors without exposing stack traces or secrets in responses.
+
+## Streamlit UI
+
+`streamlit_app.py` is a thin client for the FastAPI endpoints; it does not implement RAG itself. It supports PDF/TXT/Markdown upload, indexing status, question submission, answers, source filename/page display, connection status, and validation messages.
+
+The UI shows spinner/loading feedback during indexing and question answering. HTTP requests have bounded connect/read timeouts. Token streaming is not implemented: the current Gemini helper and LangGraph workflow return a complete answer string, and converting them to token streaming would change the generation path. The existing endpoint and reliable loading feedback are retained instead.
+
+## Configuration and Local Run
+
+Use Python 3.11 or newer. From the repository root, create and activate a virtual environment, then install the dependencies:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
+
+The Gemini API key is read by the server from `GEMINI_API_KEY`. For local development, set it in the process environment or use a local `.env` file in the repository root. The `.env` file is excluded from Git and Docker build contexts; do not commit it or put a real key in source files, README examples, or container images.
+
+Start the FastAPI backend from the repository root:
+
+```powershell
+python -m uvicorn fastapi_app:app --host 127.0.0.1 --port 8000
+```
+
+Open `http://127.0.0.1:8000/health` for liveness, `http://127.0.0.1:8000/ready` for local configuration readiness, and `http://127.0.0.1:8000/docs` for the interactive API documentation.
+
+In a second terminal, start Streamlit:
+
+```powershell
+python -m streamlit run streamlit_app.py
+```
+
+The default FastAPI URL is `http://127.0.0.1:8000`. Configure another URL with the `MEMORA_API_BASE_URL` environment variable or the URL field in the Streamlit sidebar.
+
+The existing Flask app remains available independently with `python app.py`; its routes and frontend have not been replaced by the Advanced FastAPI/Streamlit layer.
+
+## Docker
+
+The single-container image runs the FastAPI API only. It uses `python:3.11-slim`, installs `requirements.txt`, runs as a non-root user, exposes port 8000, and checks `/health`. Docker Compose is not required for this setup.
+
+Build from the repository root:
+
+```powershell
+docker build -t memora-advanced-api .
+```
+
+Provide the key at runtime through an environment variable or a local environment file; neither is copied into the image. For example, with a protected local `.env` file containing `GEMINI_API_KEY`:
+
+```powershell
+docker run --rm --env-file .env -p 8000:8000 memora-advanced-api
+```
+
+The container command is equivalent to:
+
+```text
+uvicorn fastapi_app:app --host 0.0.0.0 --port 8000
+```
+
+To use Streamlit with the containerized API, run Streamlit separately and set `MEMORA_API_BASE_URL` to the host address that reaches the published API port.
+
+## Reliability and Observability
+
+- FastAPI validates request fields with Pydantic and returns structured, user-safe HTTP errors.
+- Uploads are limited to 25 MiB; blank questions, empty documents, unsupported types, and missing document indexes are rejected.
+- Streamlit uses bounded health, upload, and question request timeouts and displays connection, indexing, and answer progress.
+- FastAPI logs indexing start/completion, safe filename/type and page/chunk counts, retrieval/reranking counts, generation outcome, groundedness result, and failures using Python's standard logging module. It does not log document contents, questions, full prompts, or API keys.
+- `/health` is a liveness check. `/ready` checks local client configuration only and does not verify external Gemini availability or make a provider call.
+
+## Testing and Validation
+
+Run the full tests:
+
+```powershell
+python -m pytest -q
+```
+
+The suite can also be run with the standard library test runner:
+
+```powershell
+python -m unittest discover -s tests -v
+```
+
+Additional repository checks:
+
+```powershell
+python -m compileall -q app.py fastapi_app.py api_schemas.py rag tests
+node --check script.js
+git diff --check
+```
+
+## Project Structure
+
+```text
+MEMORA/
+|-- app.py                    # Existing Flask application
+|-- fastapi_app.py            # Advanced FastAPI API and independent document index
+|-- streamlit_app.py          # Advanced Streamlit API client
+|-- api_schemas.py            # Pydantic request models
+|-- rag/
+|   |-- document_processor.py # PDF/TXT/Markdown extraction
+|   |-- chunker.py            # Page-aware text chunking
+|   |-- embeddings.py         # Gemini embedding adapter
+|   |-- vector_store.py       # FAISS index and retrieval
+|   |-- query_refiner.py      # Deterministic query refinement
+|   |-- reranker.py           # Local candidate reranking
+|   |-- generator.py          # Grounded prompt construction
+|   |-- groundedness.py       # Local evidence-overlap check
+|   `-- workflow.py           # LangGraph Document Tutor workflow
+|-- tests/                    # Flask/RAG/FastAPI/Streamlit tests
+|-- Dockerfile                # FastAPI container
+|-- .dockerignore
+|-- requirements.txt
+|-- index.html                # Existing Flask frontend
+|-- script.js
+`-- style.css
+```
+
+## Known Limitations
+
+- FastAPI's indexed document and FAISS index are held in process-local memory. They are replaced by the next successful upload, lost on restart, and not shared across multiple worker processes. Run a single Uvicorn worker for this in-memory design.
+- The local groundedness check is a lexical overlap heuristic; it can flag valid paraphrases or fail to detect a semantic contradiction. It does not make a second Gemini verification call.
+- Document-question responses are delivered after generation completes. Streamlit shows progress while waiting, but the current Gemini/LangGraph generation architecture does not stream answer tokens.
+- Docker configuration is provided as a single-container setup. Persistent/shared indexes and multi-container orchestration are outside this milestone.
 
 ```text
 Student

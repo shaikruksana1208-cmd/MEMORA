@@ -15,7 +15,7 @@ class StreamlitAPIHelperTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "ok")
         self.assertEqual(get.call_args.args[0], "http://localhost:8000/health")
-        self.assertEqual(get.call_args.kwargs["timeout"], 5)
+        self.assertEqual(get.call_args.kwargs["timeout"], (2, 5))
 
     def test_upload_sends_multipart_file_with_timeout(self):
         response = Mock(ok=True)
@@ -31,13 +31,21 @@ class StreamlitAPIHelperTests(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(post.call_args.args[0], "http://localhost:8000/api/index-document")
         self.assertEqual(post.call_args.kwargs["files"]["file"], ("notes.md", b"# Notes", "text/markdown"))
-        self.assertEqual(post.call_args.kwargs["timeout"], 120)
+        self.assertEqual(post.call_args.kwargs["timeout"], (5, 120))
 
     def test_upload_rejects_unsupported_and_empty_files_locally(self):
         with self.assertRaisesRegex(APIRequestError, "PDF, TXT, or Markdown"):
             upload_document("http://localhost:8000", "notes.docx", b"content")
         with self.assertRaisesRegex(APIRequestError, "empty"):
             upload_document("http://localhost:8000", "notes.txt", b"")
+
+    def test_upload_and_question_enforce_service_limits(self):
+        with patch("streamlit_app.MAX_UPLOAD_BYTES", 4):
+            with self.assertRaisesRegex(APIRequestError, "25 MB upload limit"):
+                upload_document("http://localhost:8000", "notes.txt", b"12345")
+        with patch("streamlit_app.MAX_QUESTION_LENGTH", 4):
+            with self.assertRaisesRegex(APIRequestError, "2000 characters"):
+                ask_document("http://localhost:8000", "12345")
 
     def test_question_sends_json_and_rejects_blank_input(self):
         response = Mock(ok=True)
@@ -47,7 +55,7 @@ class StreamlitAPIHelperTests(unittest.TestCase):
 
         self.assertEqual(result["answer"], "Study answer")
         self.assertEqual(post.call_args.kwargs["json"], {"question": "Explain this."})
-        self.assertEqual(post.call_args.kwargs["timeout"], 120)
+        self.assertEqual(post.call_args.kwargs["timeout"], (5, 120))
         with self.assertRaisesRegex(APIRequestError, "Enter a question"):
             ask_document("http://localhost:8000", "   ")
 

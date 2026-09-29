@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI, File, UploadFile
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
@@ -31,6 +32,9 @@ app = FastAPI(
     version="1.0.0",
 )
 
+logger = logging.getLogger(__name__)
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+
 FASTAPI_DOCUMENT_INDEX = {
     "filename": None,
     "pages": 0,
@@ -54,8 +58,23 @@ def health_check():
     }
 
 
+@app.get("/ready")
+def readiness_check():
+    if client is None:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "service": "MEMORA API"},
+        )
+    return {"status": "ready", "service": "MEMORA API"}
+
+
 @app.exception_handler(RequestValidationError)
 async def request_validation_error_handler(request: Request, exc: RequestValidationError):
+    logger.warning(
+        "Request validation failed (path=%s, error_count=%d)",
+        request.url.path,
+        len(exc.errors()),
+    )
     return JSONResponse(
         status_code=422,
         content={"error": "Please enter a valid document question."},
@@ -83,11 +102,29 @@ def index_document(file: UploadFile | None = File(default=None)):
             content={"error": "Unsupported file type. Please upload a PDF, TXT, or Markdown file."},
         )
 
+    document_type = filename.rsplit(".", 1)[-1].lower()
+    logger.info("Document indexing started (filename=%s, type=%s)", filename, document_type)
+
     try:
-        file_bytes = file.file.read()
+        file_bytes = file.file.read(MAX_UPLOAD_BYTES + 1)
+        if len(file_bytes) > MAX_UPLOAD_BYTES:
+            logger.warning(
+                "Document indexing rejected (type=%s, reason=upload_too_large)",
+                document_type,
+            )
+            return JSONResponse(
+                status_code=413,
+                content={"error": "The uploaded document exceeds the 25 MB limit."},
+            )
+
         pages = extract_document_pages(file_bytes, filename)
         chunks = chunk_pages(pages, chunk_size=500, overlap=80)
         if not chunks:
+            logger.warning(
+                "Document processing produced no chunks (filename=%s, type=%s)",
+                filename,
+                document_type,
+            )
             return JSONResponse(
                 status_code=400,
                 content={"error": "The document does not contain extractable text."},
@@ -95,6 +132,7 @@ def index_document(file: UploadFile | None = File(default=None)):
 
         embeddings = embed_texts([chunk["text"] for chunk in chunks], client=client)
         if not embeddings:
+            logger.error("Document embedding returned no vectors (type=%s)", document_type)
             return JSONResponse(
                 status_code=500,
                 content={"error": "We could not create embeddings for this document."},
@@ -110,6 +148,14 @@ def index_document(file: UploadFile | None = File(default=None)):
             "metadata": metadata,
         })
 
+        logger.info(
+            "Document indexing completed (filename=%s, type=%s, pages=%d, chunks=%d)",
+            filename,
+            document_type,
+            len(pages),
+            len(chunks),
+        )
+
         return {
             "success": True,
             "filename": filename,
@@ -118,15 +164,24 @@ def index_document(file: UploadFile | None = File(default=None)):
         }
 
     except DocumentProcessingError as error:
+        logger.warning(
+            "Document processing rejected (filename=%s, type=%s, error_type=%s)",
+            filename,
+            document_type,
+            type(error).__name__,
+        )
         return JSONResponse(status_code=400, content={"error": str(error)})
 
     except EmbeddingError as error:
+        logger.error("Document embedding failed (type=%s)", document_type)
         return JSONResponse(status_code=500, content={"error": str(error)})
 
     except VectorStoreError as error:
+        logger.error("Document vector index creation failed (type=%s)", document_type)
         return JSONResponse(status_code=500, content={"error": str(error)})
 
-    except Exception:
+    except Exception as error:
+        logger.error("Document indexing failed (error_type=%s)", type(error).__name__)
         return JSONResponse(
             status_code=500,
             content={"error": "We couldn't index this document right now. Please try again later."},
@@ -136,12 +191,17 @@ def index_document(file: UploadFile | None = File(default=None)):
 @app.post("/api/document-question")
 def document_question(data: DocumentQuestionRequest):
     if not FASTAPI_DOCUMENT_INDEX["index"] or not FASTAPI_DOCUMENT_INDEX["metadata"]:
+        logger.warning("Document question rejected (reason=document_not_indexed)")
         return JSONResponse(
             status_code=400,
             content={"error": "Please index a document before asking a question."},
         )
 
     try:
+        logger.info(
+            "Document question received (document_type=%s)",
+            (FASTAPI_DOCUMENT_INDEX["filename"] or "").rsplit(".", 1)[-1].lower(),
+        )
         workflow = create_document_tutor_workflow()
         result = workflow.invoke({
             "question": data.question,
@@ -149,29 +209,34 @@ def document_question(data: DocumentQuestionRequest):
             "metadata": FASTAPI_DOCUMENT_INDEX["metadata"],
             "filename": FASTAPI_DOCUMENT_INDEX["filename"],
             "client": client,
-            "generate_ai": generate_ai,
+            "generate_ai": _logged_generate_ai,
             "refine_query": refine_query,
             "embed_texts": embed_texts,
-            "retrieve_top_chunks": retrieve_top_chunks,
-            "rerank_chunks": rerank_chunks,
+            "retrieve_top_chunks": _logged_retrieve_top_chunks,
+            "rerank_chunks": _logged_rerank_chunks,
             "build_grounded_prompt": build_grounded_prompt,
-            "is_answer_grounded": is_answer_grounded,
+            "is_answer_grounded": _logged_groundedness_check,
             "unverified_answer_message": unverified_answer_message,
         })
 
+        sources = result.get("sources", []) or []
+        answer = result.get(
+            "answer",
+            "I could not generate an answer from the uploaded document.",
+        )
+        logger.info("Document question completed (source_count=%d)", len(sources))
         return {
             "success": True,
-            "answer": result.get(
-                "answer",
-                "I could not generate an answer from the uploaded document.",
-            ),
-            "sources": result.get("sources", []),
+            "answer": answer,
+            "sources": sources,
         }
 
     except EmbeddingError as error:
+        logger.error("Document question embedding failed (error_type=%s)", type(error).__name__)
         return JSONResponse(status_code=500, content={"error": str(error)})
 
     except VectorStoreError as error:
+        logger.error("Document retrieval failed (error_type=%s)", type(error).__name__)
         return JSONResponse(status_code=500, content={"error": str(error)})
 
     except Exception as error:
@@ -181,12 +246,58 @@ def document_question(data: DocumentQuestionRequest):
             or "busy" in error_text.lower()
             or "unavailable" in error_text.lower()
         ):
+            logger.warning("Document question service unavailable (error_type=%s)", type(error).__name__)
             return JSONResponse(
                 status_code=503,
                 content={"error": "Gemini is busy right now. Please try again later."},
             )
 
+        logger.error("Document question failed (error_type=%s)", type(error).__name__)
         return JSONResponse(
             status_code=500,
             content={"error": "We couldn't generate an answer right now. Please try again later."},
         )
+
+
+def _logged_retrieve_top_chunks(index, metadata, query_embedding, top_k=4):
+    try:
+        candidates = retrieve_top_chunks(index, metadata, query_embedding, top_k=top_k)
+    except Exception as error:
+        logger.error("Document retrieval failed (error_type=%s)", type(error).__name__)
+        raise
+    logger.info("Document retrieval completed (candidate_count=%d)", len(candidates))
+    return candidates
+
+
+def _logged_rerank_chunks(query, candidates, top_k=4):
+    try:
+        ranked = rerank_chunks(query, candidates, top_k=top_k)
+    except Exception as error:
+        logger.warning("Document reranking failed; workflow fallback will be used (error_type=%s)", type(error).__name__)
+        raise
+    logger.info("Document reranking completed (candidate_count=%d, selected_count=%d)", len(candidates), len(ranked))
+    return ranked
+
+
+def _logged_generate_ai(prompt):
+    try:
+        answer = generate_ai(prompt)
+        logger.info("Document answer generation succeeded")
+        return answer
+    except Exception as error:
+        logger.error("Document answer generation failed (error_type=%s)", type(error).__name__)
+        raise
+
+
+def _logged_groundedness_check(answer, evidence_chunks):
+    try:
+        grounded = is_answer_grounded(answer, evidence_chunks)
+    except Exception as error:
+        logger.error("Document groundedness check failed (error_type=%s)", type(error).__name__)
+        raise
+    logger.info(
+        "Document groundedness check completed (grounded=%s, evidence_chunk_count=%d)",
+        grounded,
+        len(evidence_chunks),
+    )
+    return grounded
