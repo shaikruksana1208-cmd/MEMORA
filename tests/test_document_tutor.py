@@ -9,6 +9,7 @@ from api_schemas import GenerateRequest
 from app import app
 from rag.document_processor import DocumentProcessingError, extract_document_pages
 from rag.query_refiner import refine_query
+from rag.reranker import rerank_chunks
 
 
 class DocumentProcessorTests(unittest.TestCase):
@@ -75,6 +76,60 @@ class QueryRefinerTests(unittest.TestCase):
             "DBMS_Unit1.pdf"
         )
         self.assertEqual(refined, "normalization")
+
+
+class RerankerTests(unittest.TestCase):
+    def make_candidate(self, chunk_id, text):
+        return {
+            "filename": "DBMS_Unit1.pdf",
+            "page_number": int(chunk_id[-1]),
+            "chunk_id": chunk_id,
+            "chunk_text": text
+        }
+
+    def test_lexical_relevance_can_change_faiss_order(self):
+        candidates = [
+            self.make_candidate("chunk-1", "Unrelated information about tables."),
+            self.make_candidate("chunk-2", "Normalization reduces database redundancy."),
+            *[self.make_candidate(f"chunk-{index}", "Other unrelated course content.") for index in range(3, 13)]
+        ]
+
+        reranked = rerank_chunks("normalization database redundancy", candidates)
+
+        self.assertEqual(reranked[0]["chunk_id"], "chunk-2")
+
+    def test_reranking_preserves_metadata_records_exactly(self):
+        candidates = [self.make_candidate("chunk-1", "Unrelated text.")]
+        candidates.extend(
+            self.make_candidate(f"chunk-{index}", "Normalization improves database design." if index == 2 else "Unrelated course text.")
+            for index in range(2, 13)
+        )
+
+        reranked = rerank_chunks("normalization", candidates)
+
+        self.assertEqual(reranked[0], candidates[1])
+        self.assertIs(reranked[0], candidates[1])
+        self.assertEqual(set(reranked[0]), {"filename", "page_number", "chunk_id", "chunk_text"})
+
+    def test_equal_scores_preserve_faiss_order(self):
+        candidates = [self.make_candidate("chunk-1", "Unrelated text."), self.make_candidate("chunk-2", "alpha")]
+        candidates.extend(
+            self.make_candidate(f"chunk-{index}", "Unrelated course text.")
+            for index in range(3, 9)
+        )
+
+        reranked = rerank_chunks("alpha beta gamma", candidates)
+
+        self.assertEqual(reranked[0], candidates[0])
+        self.assertEqual(reranked[1], candidates[1])
+
+    def test_returns_all_candidates_when_fewer_than_top_k(self):
+        candidates = [self.make_candidate("chunk-1", "Normalization."), self.make_candidate("chunk-2", "Database keys.")]
+
+        reranked = rerank_chunks("normalization", candidates, top_k=4)
+
+        self.assertEqual(len(reranked), 2)
+        self.assertCountEqual(reranked, candidates)
 
 
 class DocumentTutorValidationTests(unittest.TestCase):
@@ -215,6 +270,62 @@ class DocumentTutorValidationTests(unittest.TestCase):
             self.assertEqual(payload['sources'][0]['page'], 1)
             self.assertEqual(mock_embed_texts.call_args.args[0], ['normalization'])
             self.assertIn('USER QUESTION:\nWhat is normalization?', mock_generate.call_args.args[0])
+
+    @patch('app.generate_ai', return_value='Normalization reduces redundancy.')
+    @patch('app.rerank_chunks', side_effect=lambda query, chunks, top_k: chunks[:top_k])
+    @patch('app.retrieve_top_chunks', return_value=[{
+        'filename': 'DBMS_Unit1.pdf',
+        'page_number': index,
+        'chunk_id': f'chunk-{index}',
+        'chunk_text': f'Chunk content {index}.'
+    } for index in range(1, 7)])
+    @patch('app.embed_texts', return_value=[[0.1, 0.2, 0.3]])
+    @patch('app.refine_query', return_value='refined normalization query')
+    def test_document_question_retrieves_12_and_generates_from_4(self, mock_refine, mock_embed, mock_retrieve, mock_rerank, mock_generate):
+        with patch('app.DOCUMENT_INDEX', {
+            'filename': 'DBMS_Unit1.pdf',
+            'pages': 6,
+            'chunks': 6,
+            'index': object(),
+            'metadata': [{'filename': 'DBMS_Unit1.pdf', 'page_number': 1}]
+        }):
+            response = self.client.post('/api/document-question', json={'question': 'What is normalization?'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(mock_retrieve.call_args.kwargs['top_k'], 12)
+        self.assertEqual(mock_rerank.call_args.args[0], 'refined normalization query')
+        self.assertEqual(mock_rerank.call_args.kwargs['top_k'], 4)
+        self.assertEqual(mock_rerank.call_args.args[1], mock_retrieve.return_value)
+        self.assertEqual(mock_generate.call_count, 1)
+        self.assertEqual(mock_generate.call_args.args[0].count('Chunk ID:'), 4)
+        self.assertIn('USER QUESTION:\nWhat is normalization?', mock_generate.call_args.args[0])
+
+    @patch('app.generate_ai', return_value='Normalization reduces redundancy.')
+    @patch('app.rerank_chunks', side_effect=RuntimeError('reranking failed'))
+    @patch('app.retrieve_top_chunks', return_value=[{
+        'filename': 'DBMS_Unit1.pdf',
+        'page_number': index,
+        'chunk_id': f'chunk-{index}',
+        'chunk_text': f'Chunk content {index}.'
+    } for index in range(1, 7)])
+    @patch('app.embed_texts', return_value=[[0.1, 0.2, 0.3]])
+    @patch('app.refine_query', return_value='refined normalization query')
+    def test_document_question_falls_back_to_first_four_faiss_candidates(self, mock_refine, mock_embed, mock_retrieve, mock_rerank, mock_generate):
+        with patch('app.DOCUMENT_INDEX', {
+            'filename': 'DBMS_Unit1.pdf',
+            'pages': 6,
+            'chunks': 6,
+            'index': object(),
+            'metadata': [{'filename': 'DBMS_Unit1.pdf', 'page_number': 1}]
+        }):
+            response = self.client.post('/api/document-question', json={'question': 'What is normalization?'})
+
+        self.assertEqual(response.status_code, 200)
+        prompt = mock_generate.call_args.args[0]
+        for chunk_number in range(1, 5):
+            self.assertIn(f'Chunk ID: chunk-{chunk_number}', prompt)
+        self.assertNotIn('Chunk ID: chunk-5', prompt)
+        self.assertNotIn('Chunk ID: chunk-6', prompt)
 
     @patch('app.generate_ai', return_value='Normalization reduces redundancy.')
     @patch('app.retrieve_top_chunks', return_value=[{

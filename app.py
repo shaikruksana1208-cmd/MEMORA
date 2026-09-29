@@ -17,6 +17,7 @@ from rag.document_processor import DocumentProcessingError, extract_document_pag
 from rag.embeddings import EmbeddingError, embed_texts
 from rag.generator import build_grounded_prompt
 from rag.query_refiner import refine_query
+from rag.reranker import rerank_chunks
 from rag.vector_store import VectorStoreError, build_faiss_index, retrieve_top_chunks
 
 
@@ -1380,19 +1381,31 @@ def document_question():
             retrieval_query = question
 
         query_embedding = embed_texts([retrieval_query], client=client)[0]
-        relevant_chunks = retrieve_top_chunks(
+        candidate_chunks = retrieve_top_chunks(
             DOCUMENT_INDEX["index"],
             DOCUMENT_INDEX["metadata"],
             query_embedding,
-            top_k=4
+            top_k=12
         )
 
-        if not relevant_chunks:
+        if not candidate_chunks:
             return jsonify({
                 "success": True,
                 "answer": "I could not find enough information in the uploaded document to answer that question.",
                 "sources": []
             })
+
+        try:
+            relevant_chunks = rerank_chunks(
+                retrieval_query,
+                candidate_chunks,
+                top_k=4
+            )
+            if not relevant_chunks:
+                raise ValueError("The reranker returned no chunks.")
+        except Exception as error:
+            print("DOCUMENT RERANK ERROR:", error)
+            relevant_chunks = candidate_chunks[:4]
 
         prompt = build_grounded_prompt(question, relevant_chunks)
         answer = generate_ai(prompt)
