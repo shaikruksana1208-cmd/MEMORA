@@ -9,3 +9,6 @@ numpy
 gunicorn
 pydantic>=2,<3
 langgraph>=1.2,<2
+fastapi>=0.142,<1
+uvicorn>=0.54,<1
+python-multipart>=0.0.20,<1
