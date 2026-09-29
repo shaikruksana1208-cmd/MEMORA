@@ -20,7 +20,7 @@ from rag.groundedness import is_answer_grounded, unverified_answer_message
 from rag.query_refiner import refine_query
 from rag.reranker import rerank_chunks
 from rag.vector_store import VectorStoreError, build_faiss_index, retrieve_top_chunks
-
+from rag.workflow import create_document_tutor_workflow
 
 # ==========================================================
 # MEMORA
@@ -1373,70 +1373,34 @@ def document_question():
                 "error": "Please index a document before asking a question."
             }), 400
 
-        try:
-            retrieval_query = refine_query(question, DOCUMENT_INDEX["filename"])
-            if not isinstance(retrieval_query, str) or not retrieval_query.strip():
-                retrieval_query = question
-        except Exception as error:
-            print("QUERY REFINEMENT ERROR:", error)
-            retrieval_query = question
+        workflow = create_document_tutor_workflow()
 
-        query_embedding = embed_texts([retrieval_query], client=client)[0]
-        candidate_chunks = retrieve_top_chunks(
-            DOCUMENT_INDEX["index"],
-            DOCUMENT_INDEX["metadata"],
-            query_embedding,
-            top_k=12
-        )
-
-        if not candidate_chunks:
-            return jsonify({
-                "success": True,
-                "answer": "I could not find enough information in the uploaded document to answer that question.",
-                "sources": []
-            })
-
-        try:
-            relevant_chunks = rerank_chunks(
-                retrieval_query,
-                candidate_chunks,
-                top_k=4
-            )
-            if not relevant_chunks:
-                raise ValueError("The reranker returned no chunks.")
-        except Exception as error:
-            print("DOCUMENT RERANK ERROR:", error)
-            relevant_chunks = candidate_chunks[:4]
-
-        prompt = build_grounded_prompt(question, relevant_chunks)
-        answer = generate_ai(prompt)
-
-        try:
-            if not is_answer_grounded(answer, relevant_chunks):
-                answer = unverified_answer_message()
-        except Exception as error:
-            print("DOCUMENT GROUNDEDNESS CHECK ERROR:", error)
-            answer = unverified_answer_message()
-
-        seen_sources = set()
-        sources = []
-
-        for chunk in relevant_chunks:
-            page_key = (chunk["filename"], chunk["page_number"])
-
-            if page_key in seen_sources:
-                continue
-
-            seen_sources.add(page_key)
-            sources.append({
-                "filename": chunk["filename"],
-                "page": chunk["page_number"]
-            })
+        result = workflow.invoke({
+            "question": question,
+            "document_index": DOCUMENT_INDEX["index"],
+            "metadata": DOCUMENT_INDEX["metadata"],
+            "filename": DOCUMENT_INDEX["filename"],
+            "client": client,
+            "generate_ai": generate_ai,
+            "refine_query": refine_query,
+            "embed_texts": embed_texts,
+            "retrieve_top_chunks": retrieve_top_chunks,
+            "rerank_chunks": rerank_chunks,
+            "build_grounded_prompt": build_grounded_prompt,
+            "is_answer_grounded": is_answer_grounded,
+            "unverified_answer_message": unverified_answer_message
+        })
 
         return jsonify({
             "success": True,
-            "answer": answer,
-            "sources": sources
+            "answer": result.get(
+                "answer",
+                "I could not generate an answer from the uploaded document."
+            ),
+            "sources": result.get(
+                "sources",
+                []
+            )
         })
 
     except EmbeddingError as error:

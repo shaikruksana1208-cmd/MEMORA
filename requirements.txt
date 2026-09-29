@@ -8,3 +8,4 @@ faiss-cpu
 numpy
 gunicorn
 pydantic>=2,<3
+langgraph>=1.2,<2
