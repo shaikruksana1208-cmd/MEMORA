@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Level 3 Advanced RAG Assistant | MEMORA</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body class="advanced-page">
+    <header>
+        <a class="logo advanced-logo" href="/">✦ MEMORA</a>
+        <nav aria-label="Main navigation">
+            <a href="/">All levels</a>
+            <a href="/#study-space">Level 1</a>
+            <a href="/#document-tutor">Level 2</a>
+            <span aria-current="page">Level 3 · Advanced</span>
+        </nav>
+    </header>
+
+    <main class="advanced-main">
+        <section class="advanced-intro">
+            <p class="hero-small">LEVEL 3 · ADVANCED</p>
+            <h1>Advanced RAG Assistant</h1>
+            <p>Upload a study document, then ask questions answered from retrieved passages with source pages.</p>
+            <div class="advanced-flow" aria-label="Advanced retrieval steps">
+                <span>Refine</span><b>→</b><span>Retrieve</span><b>→</b><span>Rerank</span><b>→</b><span>Ground</span>
+            </div>
+            <div id="advancedHealth" class="advanced-health" role="status">Checking Advanced API…</div>
+        </section>
+
+        <section class="advanced-workspace" aria-labelledby="uploadHeading">
+            <div class="advanced-panel">
+                <p class="level-number">STEP 1</p>
+                <h2 id="uploadHeading">Index your document</h2>
+                <p>Supported formats: PDF, TXT, and Markdown. Maximum size: 25 MB.</p>
+                <label for="advancedFile">Choose a study document</label>
+                <input id="advancedFile" type="file" accept=".pdf,.txt,.md,application/pdf,text/plain,text/markdown">
+                <button id="advancedIndex" class="document-index-btn" type="button">Index document</button>
+                <div id="advancedIndexStatus" class="document-status" role="status">No Advanced document indexed yet.</div>
+            </div>
+
+            <div class="advanced-panel">
+                <p class="level-number">STEP 2</p>
+                <h2>Ask from your sources</h2>
+                <label for="advancedQuestion">Your question</label>
+                <textarea id="advancedQuestion" maxlength="2000" placeholder="For example: How does normalization reduce redundancy?"></textarea>
+                <button id="advancedAsk" class="document-question-btn" type="button" disabled>Ask MEMORA</button>
+                <div id="advancedAnswerStatus" class="document-status" role="status">Index a document to begin.</div>
+                <article id="advancedAnswer" class="document-answer-box" aria-live="polite">
+                    <h3>Your grounded answer will appear here</h3>
+                </article>
+                <section id="advancedSources" class="document-sources" aria-label="Answer sources">
+                    <h3>Sources</h3>
+                    <p>No sources yet.</p>
+                </section>
+            </div>
+        </section>
+        <p class="advanced-return"><a href="/">← Back to all MEMORA levels</a></p>
+    </main>
+    <script src="/advanced.js" defer></script>
+</body>
+</html>

@@ -29,7 +29,7 @@ class StreamlitAPIHelperTests(unittest.TestCase):
             result = upload_document("http://localhost:8000", "notes.md", b"# Notes")
 
         self.assertTrue(result["success"])
-        self.assertEqual(post.call_args.args[0], "http://localhost:8000/api/index-document")
+        self.assertEqual(post.call_args.args[0], "http://localhost:8000/api/advanced/index-document")
         self.assertEqual(post.call_args.kwargs["files"]["file"], ("notes.md", b"# Notes", "text/markdown"))
         self.assertEqual(post.call_args.kwargs["timeout"], (5, 120))
 
@@ -54,6 +54,7 @@ class StreamlitAPIHelperTests(unittest.TestCase):
             result = ask_document("http://localhost:8000", "  Explain this.  ")
 
         self.assertEqual(result["answer"], "Study answer")
+        self.assertEqual(post.call_args.args[0], "http://localhost:8000/api/advanced/document-question")
         self.assertEqual(post.call_args.kwargs["json"], {"question": "Explain this."})
         self.assertEqual(post.call_args.kwargs["timeout"], (5, 120))
         with self.assertRaisesRegex(APIRequestError, "Enter a question"):

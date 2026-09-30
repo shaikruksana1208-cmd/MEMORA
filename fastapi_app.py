@@ -1,14 +1,15 @@
 import logging
+from a2wsgi import WSGIMiddleware
 from fastapi import FastAPI, File, UploadFile
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import FileResponse, JSONResponse
 from werkzeug.utils import secure_filename
 
 from api_schemas import DocumentQuestionRequest
 from app import (
-    DOCUMENT_INDEX,
+    app as flask_app,
     build_grounded_prompt,
     client,
     embed_texts,
@@ -81,7 +82,7 @@ async def request_validation_error_handler(request: Request, exc: RequestValidat
     )
 
 
-@app.post("/api/index-document")
+@app.post("/api/advanced/index-document")
 def index_document(file: UploadFile | None = File(default=None)):
     if file is None:
         return JSONResponse(
@@ -188,7 +189,7 @@ def index_document(file: UploadFile | None = File(default=None)):
         )
 
 
-@app.post("/api/document-question")
+@app.post("/api/advanced/document-question")
 def document_question(data: DocumentQuestionRequest):
     if not FASTAPI_DOCUMENT_INDEX["index"] or not FASTAPI_DOCUMENT_INDEX["metadata"]:
         logger.warning("Document question rejected (reason=document_not_indexed)")
@@ -301,3 +302,18 @@ def _logged_groundedness_check(answer, evidence_chunks):
         len(evidence_chunks),
     )
     return grounded
+
+
+@app.get("/level-3", include_in_schema=False)
+def advanced_page():
+    return FileResponse("advanced.html")
+
+
+@app.get("/advanced.js", include_in_schema=False)
+def advanced_javascript():
+    return FileResponse("advanced.js", media_type="application/javascript")
+
+
+# Keep this fallback last so FastAPI endpoints above take precedence while
+# all existing Flask routes and static files remain available at their paths.
+app.mount("/", WSGIMiddleware(flask_app), name="flask-legacy")

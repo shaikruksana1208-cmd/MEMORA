@@ -112,13 +112,14 @@ Examples include:
 
 ## 🛠️ Technology Stack
 
-### Existing application
+### Unified public application
 
 - HTML
 - CSS
 - JavaScript
-- Flask and Flask-CORS
-- Existing Beginner and Intermediate study tools
+- FastAPI is the public ASGI host.
+- The existing Flask application is mounted behind FastAPI for Level 1 and Level 2 routes and assets.
+- Existing Beginner and Intermediate functionality remains in Flask.
 
 ### Advanced document tutor
 
@@ -176,16 +177,26 @@ Upload
 
 `api_schemas.py` defines Pydantic v2 request schemas. FastAPI validates document questions, reports clear HTTP errors, and preserves the `{success, answer, sources}` success response structure.
 
+## One Public MEMORA URL
+
+The unified deployment presents one MEMORA landing page with three levels:
+
+- **Level 1 → Beginner:** AI study utilities, planning, focus tools, and study-material helpers.
+- **Level 2 → Intermediate RAG:** the existing Flask Document Tutor for supported document uploads and source-based answers.
+- **Level 3 → Advanced RAG:** the Advanced Assistant with query refinement, retrieval, reranking, grounded generation, groundedness checks, and sources.
+
+FastAPI is the public host. It serves its own health endpoints and Advanced routes, then mounts the unchanged Flask app through `a2wsgi` as the fallback for existing Level 1 and Level 2 routes, HTML, JavaScript, and CSS. The landing page links to all three levels; Level 3 is a same-origin FastAPI-served page.
+
 ## FastAPI Endpoints
 
-Run FastAPI separately from the existing Flask application. The Advanced Streamlit client uses this API.
+The Advanced API uses a separate path prefix to avoid collisions with Flask's existing Level 2 routes. Flask keeps its existing `/api/index-document` and `/api/document-question` endpoints.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/health` | Liveness check; preserves the existing `{status, service}` response. |
 | `GET` | `/ready` | Local readiness check; verifies that the Gemini client is configured without making a Gemini request. |
-| `POST` | `/api/index-document` | Multipart upload using the `file` field; indexes PDF, TXT, or Markdown and returns filename, page count, and chunk count. |
-| `POST` | `/api/document-question` | JSON body `{"question": "..."}`; returns `{success, answer, sources}`. |
+| `POST` | `/api/advanced/index-document` | Multipart upload using the `file` field; indexes PDF, TXT, or Markdown and returns filename, page count, and chunk count. |
+| `POST` | `/api/advanced/document-question` | JSON body `{"question": "..."}`; returns `{success, answer, sources}`. |
 
 Upload requests are limited to 25 MiB. Invalid/empty files, missing indexed documents, invalid questions, embedding/retrieval failures, and provider overloads receive HTTP errors without exposing stack traces or secrets in responses.
 
@@ -207,10 +218,10 @@ python -m pip install -r requirements.txt
 
 The Gemini API key is read by the server from `GEMINI_API_KEY`. For local development, set it in the process environment or use a local `.env` file in the repository root. The `.env` file is excluded from Git and Docker build contexts; do not commit it or put a real key in source files, README examples, or container images.
 
-Start the FastAPI backend from the repository root:
+Start the unified FastAPI backend from the repository root with one worker (the document index is process-local):
 
 ```powershell
-python -m uvicorn fastapi_app:app --host 127.0.0.1 --port 8000
+python -m uvicorn fastapi_app:app --host 127.0.0.1 --port 8000 --workers 1
 ```
 
 Open `http://127.0.0.1:8000/health` for liveness, `http://127.0.0.1:8000/ready` for local configuration readiness, and `http://127.0.0.1:8000/docs` for the interactive API documentation.
@@ -223,11 +234,13 @@ python -m streamlit run streamlit_app.py
 
 The default FastAPI URL is `http://127.0.0.1:8000`. Configure another URL with the `MEMORA_API_BASE_URL` environment variable or the URL field in the Streamlit sidebar.
 
-The existing Flask app remains available independently with `python app.py`; its routes and frontend have not been replaced by the Advanced FastAPI/Streamlit layer.
+The Flask app remains mounted inside the unified FastAPI host; use the unified Uvicorn command for the one-URL application. For isolated legacy development, `python app.py` still starts Flask directly.
+
+The Streamlit client is retained as an optional local Advanced UI, not as the public production interface. It calls the same `/api/advanced/...` endpoints. The public Advanced page is served from the same origin at `/level-3`.
 
 ## Docker
 
-The single-container image runs the FastAPI API only. It uses `python:3.11-slim`, installs `requirements.txt`, runs as a non-root user, exposes port 8000, and checks `/health`. Docker Compose is not required for this setup.
+The single-container image runs the unified FastAPI host, which mounts Flask for legacy routes. It uses `python:3.11-slim`, installs `requirements.txt`, runs as a non-root user, exposes port 8000, uses one Uvicorn worker, and checks `/health`. Docker Compose is not required for this setup.
 
 Build from the repository root:
 
@@ -244,8 +257,10 @@ docker run --rm --env-file .env -p 8000:8000 memora-advanced-api
 The container command is equivalent to:
 
 ```text
-uvicorn fastapi_app:app --host 0.0.0.0 --port 8000
+uvicorn fastapi_app:app --host 0.0.0.0 --port 8000 --workers 1
 ```
+
+The Docker command also specifies `--workers 1` because the Advanced document index is held in process-local memory.
 
 To use Streamlit with the containerized API, run Streamlit separately and set `MEMORA_API_BASE_URL` to the host address that reaches the published API port.
 
@@ -284,8 +299,10 @@ git diff --check
 ```text
 MEMORA/
 |-- app.py                    # Existing Flask application
-|-- fastapi_app.py            # Advanced FastAPI API and independent document index
-|-- streamlit_app.py          # Advanced Streamlit API client
+|-- fastapi_app.py            # Unified FastAPI host, mounts Flask, serves Advanced API
+|-- streamlit_app.py          # Optional local Advanced Streamlit client
+|-- advanced.html             # Same-origin Level 3 interface
+|-- advanced.js               # Level 3 API interactions
 |-- api_schemas.py            # Pydantic request models
 |-- rag/
 |   |-- document_processor.py # PDF/TXT/Markdown extraction
@@ -310,20 +327,5 @@ MEMORA/
 
 - FastAPI's indexed document and FAISS index are held in process-local memory. They are replaced by the next successful upload, lost on restart, and not shared across multiple worker processes. Run a single Uvicorn worker for this in-memory design.
 - The local groundedness check is a lexical overlap heuristic; it can flag valid paraphrases or fail to detect a semantic contradiction. It does not make a second Gemini verification call.
-- Document-question responses are delivered after generation completes. Streamlit shows progress while waiting, but the current Gemini/LangGraph generation architecture does not stream answer tokens.
+- Document-question responses are delivered after generation completes. The Advanced web page and optional Streamlit UI show progress while waiting, but the current Gemini/LangGraph generation architecture does not stream answer tokens.
 - Docker configuration is provided as a single-container setup. Persistent/shared indexes and multi-container orchestration are outside this milestone.
-
-```text
-Student
-   ↓
-Enter topic / upload study material
-   ↓
-Select learning activity
-   ↓
-MEMORA processes the request
-   ↓
-Structured prompt sent to Gemini
-   ↓
-AI-generated learning content
-   ↓
-Student learns, practices and revises

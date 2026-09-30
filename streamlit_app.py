@@ -69,7 +69,7 @@ def upload_document(base_url, filename, file_bytes, timeout=REQUEST_TIMEOUT):
 
     try:
         response = requests.post(
-            f"{_base_url(base_url)}/api/index-document",
+            f"{_base_url(base_url)}/api/advanced/index-document",
             files={"file": (filename, file_bytes, mime_type)},
             timeout=timeout,
         )
@@ -87,7 +87,7 @@ def ask_document(base_url, question, timeout=REQUEST_TIMEOUT):
 
     try:
         response = requests.post(
-            f"{_base_url(base_url)}/api/document-question",
+            f"{_base_url(base_url)}/api/advanced/document-question",
             json={"question": question},
             timeout=timeout,
         )

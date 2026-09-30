@@ -13,3 +13,4 @@ fastapi>=0.142,<1
 uvicorn>=0.54,<1
 python-multipart>=0.0.20,<1
 streamlit>=1.40,<2
+a2wsgi>=1.10,<2

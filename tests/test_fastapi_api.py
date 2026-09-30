@@ -1,10 +1,12 @@
 import unittest
 import logging
+from io import BytesIO
 from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 
 import fastapi_app
+import app as flask_app
 
 
 class FastAPIApiTests(unittest.TestCase):
@@ -18,6 +20,42 @@ class FastAPIApiTests(unittest.TestCase):
         self.assertEqual(response.json(), {
             "status": "ok",
             "service": "MEMORA FastAPI",
+        })
+
+    def test_level_one_flask_landing_and_assets_are_mounted(self):
+        landing = self.client.get("/")
+        css = self.client.get("/style.css")
+        javascript = self.client.get("/script.js")
+
+        self.assertEqual(landing.status_code, 200)
+        self.assertIn("Level 1", landing.text)
+        self.assertIn("Level 2", landing.text)
+        self.assertIn("Level 3", landing.text)
+        self.assertEqual(css.status_code, 200)
+        self.assertIn(".level-grid", css.text)
+        self.assertEqual(javascript.status_code, 200)
+
+    def test_level_three_page_and_script_are_served_by_fastapi(self):
+        page = self.client.get("/level-3")
+        script = self.client.get("/advanced.js")
+
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("Advanced RAG Assistant", page.text)
+        self.assertIn("/api/advanced/index-document", script.text)
+        self.assertIn("/api/advanced/document-question", script.text)
+
+    def test_fastapi_schema_namespaces_advanced_routes(self):
+        paths = fastapi_app.app.openapi()["paths"]
+
+        self.assertIn("/api/advanced/index-document", paths)
+        self.assertIn("/api/advanced/document-question", paths)
+        self.assertNotIn("/api/index-document", paths)
+        self.assertNotIn("/api/document-question", paths)
+        self.assertIn("/api/index-document", {
+            rule.rule for rule in flask_app.app.url_map.iter_rules()
+        })
+        self.assertIn("/api/document-question", {
+            rule.rule for rule in flask_app.app.url_map.iter_rules()
         })
 
     def test_readiness_checks_local_client_without_calling_gemini(self):
@@ -40,7 +78,7 @@ class FastAPIApiTests(unittest.TestCase):
     def test_document_question_rejects_missing_or_blank_question(self):
         for payload in ({}, {"question": "   "}):
             with self.subTest(payload=payload):
-                response = self.client.post("/api/document-question", json=payload)
+                response = self.client.post("/api/advanced/document-question", json=payload)
                 self.assertEqual(response.status_code, 422)
                 self.assertEqual(set(response.json()), {"error"})
 
@@ -50,7 +88,7 @@ class FastAPIApiTests(unittest.TestCase):
             "metadata": [],
         }):
             response = self.client.post(
-                "/api/document-question",
+                "/api/advanced/document-question",
                 json={"question": "What is normalization?"},
             )
 
@@ -73,7 +111,7 @@ class FastAPIApiTests(unittest.TestCase):
             "filename": None, "pages": 0, "chunks": 0, "index": None, "metadata": []
         }):
             response = self.client.post(
-                "/api/index-document",
+                "/api/advanced/index-document",
                 files={"file": ("notes.txt", b"Normalization reduces redundancy.", "text/plain")},
             )
             self.assertEqual(fastapi_app.FASTAPI_DOCUMENT_INDEX["index"], index)
@@ -104,7 +142,7 @@ class FastAPIApiTests(unittest.TestCase):
             "filename": None, "pages": 0, "chunks": 0, "index": None, "metadata": []
         }):
             response = self.client.post(
-                "/api/index-document",
+                "/api/advanced/index-document",
                 files={"file": ("notes.md", b"# Notes\n\nImportant details.", "text/markdown")},
             )
 
@@ -115,7 +153,7 @@ class FastAPIApiTests(unittest.TestCase):
 
     def test_index_document_rejects_unsupported_extension(self):
         response = self.client.post(
-            "/api/index-document",
+            "/api/advanced/index-document",
             files={"file": ("notes.docx", b"Document", "application/octet-stream")},
         )
 
@@ -124,7 +162,7 @@ class FastAPIApiTests(unittest.TestCase):
 
     def test_index_document_rejects_empty_document(self):
         response = self.client.post(
-            "/api/index-document",
+            "/api/advanced/index-document",
             files={"file": ("empty.txt", b"  \n\t", "text/plain")},
         )
 
@@ -137,10 +175,47 @@ class FastAPIApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("Please upload", response.json()["error"])
 
+    @patch("app.build_faiss_index", return_value=(object(), [{"filename": "level-two.txt"}]))
+    @patch("app.embed_texts", return_value=[[0.1, 0.2, 0.3]])
+    def test_level_two_flask_document_upload_remains_available(self, mock_embed, mock_build):
+        with patch.dict(flask_app.DOCUMENT_INDEX, {
+            "filename": None,
+            "pages": 0,
+            "chunks": 0,
+            "index": None,
+            "metadata": [],
+        }):
+            response = self.client.post(
+                "/api/index-document",
+                files={"file": ("level-two.txt", b"Level two document content.", "text/plain")},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["filename"], "level-two.txt")
+        mock_embed.assert_called_once()
+        mock_build.assert_called_once()
+
+    def test_level_two_and_advanced_index_paths_do_not_collide(self):
+        with (
+            patch.dict(flask_app.DOCUMENT_INDEX, {
+                "filename": None, "pages": 0, "chunks": 0, "index": None, "metadata": []
+            }),
+            patch.dict(fastapi_app.FASTAPI_DOCUMENT_INDEX, {
+                "filename": None, "pages": 0, "chunks": 0, "page_records": [], "index": None, "metadata": []
+            }),
+        ):
+            level_two_response = self.client.post("/api/index-document")
+            advanced_response = self.client.post("/api/advanced/index-document")
+
+        self.assertEqual(level_two_response.status_code, 400)
+        self.assertEqual(advanced_response.status_code, 400)
+        self.assertEqual(level_two_response.json()["error"], "Please upload a document first.")
+        self.assertEqual(advanced_response.json()["error"], "Please upload a document first.")
+
     def test_index_document_rejects_upload_over_size_limit(self):
         with patch("fastapi_app.MAX_UPLOAD_BYTES", 8):
             response = self.client.post(
-                "/api/index-document",
+                "/api/advanced/index-document",
                 files={"file": ("notes.txt", b"123456789", "text/plain")},
             )
 
@@ -156,7 +231,7 @@ class FastAPIApiTests(unittest.TestCase):
             "page_records": [], "index": None, "metadata": []
         }), self.assertLogs("fastapi_app", level=logging.INFO) as captured:
             response = self.client.post(
-                "/api/index-document",
+                "/api/advanced/index-document",
                 files={"file": ("private-notes.txt", b"secret document body", "text/plain")},
             )
 
@@ -192,11 +267,11 @@ class FastAPIApiTests(unittest.TestCase):
             patch("fastapi_app.create_document_tutor_workflow", return_value=workflow),
         ):
             index_response = self.client.post(
-                "/api/index-document",
+                "/api/advanced/index-document",
                 files={"file": ("notes.txt", b"Normalization reduces redundancy.", "text/plain")},
             )
             question_response = self.client.post(
-                "/api/document-question",
+                "/api/advanced/document-question",
                 json={"question": "What is normalization?"},
             )
 
@@ -225,7 +300,7 @@ class FastAPIApiTests(unittest.TestCase):
             patch("fastapi_app.create_document_tutor_workflow", return_value=workflow),
         ):
             response = self.client.post(
-                "/api/document-question",
+                "/api/advanced/document-question",
                 json={"question": "What is normalization?"},
             )
 
@@ -261,7 +336,7 @@ class FastAPIApiTests(unittest.TestCase):
             patch("fastapi_app.create_document_tutor_workflow", return_value=workflow),
         ):
             response = self.client.post(
-                "/api/document-question",
+                "/api/advanced/document-question",
                 json={"question": "Summarize the notes."},
             )
 
@@ -280,7 +355,7 @@ class FastAPIApiTests(unittest.TestCase):
             patch("fastapi_app.create_document_tutor_workflow", return_value=workflow),
         ):
             response = self.client.post(
-                "/api/document-question",
+                "/api/advanced/document-question",
                 json={"question": "Question containing private text"},
             )
 

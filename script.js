@@ -14,7 +14,7 @@ if (startButton) {
 
     startButton.addEventListener("click", function () {
 
-        const features = document.querySelector(".features");
+        const features = document.querySelector("#levels");
 
         if (features) {
 
